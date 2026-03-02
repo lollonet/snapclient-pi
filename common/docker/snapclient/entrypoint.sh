@@ -1,5 +1,5 @@
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 # Default values (SNAPSERVER_HOST empty = mDNS autodiscovery)
 SNAPSERVER_PORT="${SNAPSERVER_PORT:-1704}"
