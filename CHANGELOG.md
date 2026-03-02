@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-03-02
+
+### Fixed
+- **800x600 Install Resolution Persists** ([#55](https://github.com/lollonet/rpi-snapclient-usb/pull/55)) - `setup.sh` now warns that a reboot is required after removing the temporary `video=HDMI-A-1:800x600` parameter from cmdline.txt. Also uses a robust sed pattern to handle any resolution variant, and verifies the removal succeeded
+
 ## [0.1.8] - 2026-03-01
 
 ### Added
