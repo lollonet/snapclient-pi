@@ -12,6 +12,7 @@ set -euo pipefail
 AUTO_MODE=false
 AUTO_CONFIG=""
 ENABLE_READONLY=true
+NEEDS_REBOOT=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -739,7 +740,12 @@ if [ -n "$BOOT_CONFIG" ]; then
     fi
     if [ -n "$CMDLINE" ] && grep -q "video=HDMI-A-1:800x600" "$CMDLINE"; then
         echo "Removing temporary 800x600 video parameter..."
-        sed -i 's/ video=HDMI-A-1:800x600@60//' "$CMDLINE"
+        sed -i 's/ video=HDMI-A-1:[^ ]*//' "$CMDLINE"
+        NEEDS_REBOOT=true
+        if grep -q "video=HDMI-A-1:" "$CMDLINE"; then
+            echo "WARNING: Could not fully remove video= from cmdline.txt"
+            echo "  Manually edit: $CMDLINE"
+        fi
     fi
 
     # Extract display width from resolution (default to 0 for autodiscovery mode)
@@ -1182,5 +1188,10 @@ echo "Read-only mode is enabled. After reboot:"
 echo "  - Root filesystem will be read-only (protected from corruption)"
 echo "  - Use 'sudo ro-mode status' to verify"
 echo "  - Use 'sudo ro-mode disable && sudo reboot' for updates"
+fi
+if [[ "$NEEDS_REBOOT" == "true" ]]; then
+echo ""
+echo "NOTE: Display resolution was changed (800x600 install mode removed)."
+echo "  A reboot is required for the new resolution to take effect."
 fi
 echo ""
