@@ -10,7 +10,6 @@ common/
 ├── .env.example                # Full config reference
 ├── docker/
 │   ├── snapclient/             # Core audio client (ALSA → Snapserver)
-│   ├── metadata-service/       # Metadata service (deployed on server)
 │   ├── audio-visualizer/       # FFT spectrum via WebSocket (port 8081)
 │   └── fb-display/             # Framebuffer renderer (/dev/fb0)
 ├── scripts/setup.sh            # Main installer (--auto supported)
