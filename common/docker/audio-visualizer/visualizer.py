@@ -199,10 +199,6 @@ def analyze_pcm(new_samples: np.ndarray) -> str | None:
     return _format_db(prev_db)
 
 
-# Pre-compute format string buffer
-_fmt_noise = str(round(NOISE_FLOOR, 1))
-
-
 def _format_db(db_vals: np.ndarray) -> str:
     """Format dBFS values as semicolon-separated string."""
     rounded = np.round(db_vals, 1)
