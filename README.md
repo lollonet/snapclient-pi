@@ -256,7 +256,7 @@ Port 8081 is a WebSocket-only endpoint. Check the container logs:
 sudo docker logs audio-visualizer 2>&1 | tail -5
 ```
 
-Expected: `WebSocket server on :8081` and periodic data lines when audio is playing.
+Expected: `Starting spectrum analyzer on port 8081` and periodic data lines when audio is playing.
 
 ### 6. Read-only filesystem (if enabled)
 
