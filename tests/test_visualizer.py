@@ -1,7 +1,9 @@
 """Tests for audio-visualizer spectrum analyzer (pure numpy, no hardware)."""
 
+import asyncio
 import sys
 import os
+from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
@@ -67,7 +69,7 @@ class TestAnalyzePcm:
 
     def setup_method(self):
         """Reset global state before each test."""
-        visualizer.prev_db = np.full(visualizer.NUM_BANDS, visualizer.NOISE_FLOOR, dtype=np.float64)
+        visualizer.prev_db = np.full(visualizer.NUM_BANDS, visualizer.NOISE_FLOOR, dtype=np.float32)
         visualizer.audio_ring = np.zeros(visualizer.FFT_SIZE, dtype=np.float32)
 
     def test_silence_returns_noise_floor(self):
@@ -184,6 +186,60 @@ class TestSmoothingCoefficients:
         attack_alpha = 1.0 - visualizer.ATTACK_COEFF
         decay_alpha = 1.0 - visualizer.DECAY_COEFF
         assert attack_alpha > decay_alpha, "Attack should be faster than decay"
+
+
+class TestBroadcast:
+    """Test WebSocket broadcast with dedup logic."""
+
+    def setup_method(self):
+        """Reset broadcast state before each test."""
+        visualizer._last_broadcast = ""
+        visualizer.clients = set()
+
+    def test_first_send(self):
+        """First broadcast should send to client."""
+        client = AsyncMock()
+        visualizer.clients.add(client)
+        asyncio.run(visualizer.broadcast("data1"))
+        client.send.assert_awaited_once_with("data1")
+
+    def test_dedup_skips_same_data(self):
+        """Duplicate data should not be sent again."""
+        client = AsyncMock()
+        visualizer.clients.add(client)
+        asyncio.run(visualizer.broadcast("data1"))
+        asyncio.run(visualizer.broadcast("data1"))
+        client.send.assert_awaited_once_with("data1")
+
+    def test_different_data_sends(self):
+        """Different data should be sent."""
+        client = AsyncMock()
+        visualizer.clients.add(client)
+        asyncio.run(visualizer.broadcast("data1"))
+        asyncio.run(visualizer.broadcast("data2"))
+        assert client.send.await_count == 2
+
+    def test_no_clients_resets_cache(self):
+        """Empty client set should reset _last_broadcast."""
+        visualizer._last_broadcast = "stale"
+        asyncio.run(visualizer.broadcast("data1"))
+        assert visualizer._last_broadcast == ""
+
+    def test_reconnect_after_reset_receives_data(self):
+        """Client connecting after cache reset should receive current frame."""
+        client = AsyncMock()
+        visualizer.clients.add(client)
+        # Send data, then remove client (simulates disconnect)
+        asyncio.run(visualizer.broadcast("data1"))
+        visualizer.clients.clear()
+        # Trigger reset
+        asyncio.run(visualizer.broadcast("data1"))
+        assert visualizer._last_broadcast == ""
+        # Reconnect — same data should send
+        client2 = AsyncMock()
+        visualizer.clients.add(client2)
+        asyncio.run(visualizer.broadcast("data1"))
+        client2.send.assert_awaited_once_with("data1")
 
 
 class TestConstants:
