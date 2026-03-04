@@ -973,6 +973,14 @@ for key in "${!env_vars[@]}"; do
     update_env_var "$key" "${env_vars[$key]}"
 done
 
+# Remove deprecated env vars from previous installs
+for deprecated_key in METADATA_HOST METADATA_HTTP_PORT; do
+    if grep -q "^${deprecated_key}=" "$INSTALL_DIR/.env" 2>/dev/null; then
+        sed -i "/^${deprecated_key}=/d" "$INSTALL_DIR/.env"
+        echo "Removed deprecated ${deprecated_key} from .env"
+    fi
+done
+
 echo "Docker configuration ready"
 echo "  - Snapserver: ${snapserver_ip:-autodiscovery}"
 echo "  - Client ID: $CLIENT_ID"
