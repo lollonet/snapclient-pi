@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-04
+
+### Added
+- **Post-Install Verification Checklist** ([#37](https://github.com/lollonet/rpi-snapclient-usb/issues/37), [#63](https://github.com/lollonet/rpi-snapclient-usb/pull/63)) - Step-by-step checklist with commands and expected outputs for Docker, audio, display, spectrum, and read-only FS
+- **Troubleshooting Section** ([#38](https://github.com/lollonet/rpi-snapclient-usb/issues/38), [#63](https://github.com/lollonet/rpi-snapclient-usb/pull/63)) - Problem/cause/fix tables for audio, display, network, Docker, and read-only filesystem issues
+- **Hardware Compatibility Matrix** ([#39](https://github.com/lollonet/rpi-snapclient-usb/issues/39), [#63](https://github.com/lollonet/rpi-snapclient-usb/pull/63)) - Tested/untested status for Pi models (3B+ through 5) and display types
+- **Broadcast Dedup** ([#60](https://github.com/lollonet/rpi-snapclient-usb/pull/60)) - WebSocket broadcast skips identical consecutive frames during silence (~27 fewer sends/sec per client)
+
+### Changed
+- **float32 Hot Path** ([#60](https://github.com/lollonet/rpi-snapclient-usb/pull/60)) - Smoothing coefficients and cumsum buffer use float32 to avoid implicit float64 promotion in visualizer
+- **CI Review Workflow** - Allow bot-triggered reviews (`allowed_bots`), removed `use_sticky_comment` to preserve review history, reduced `fetch-depth` to 1
+
+### Fixed
+- **RGB565 LUT Regression** ([#62](https://github.com/lollonet/rpi-snapclient-usb/pull/62)) - Reverted lookup table approach; direct `astype(uint16)` + bitwise is 35-75% faster on ARM Cortex-A72
+- **Exception Handlers** ([#57](https://github.com/lollonet/rpi-snapclient-usb/pull/57), [#58](https://github.com/lollonet/rpi-snapclient-usb/pull/58)) - Narrowed broad `except Exception` handlers, replaced `socket.error`/`socket.timeout` with `OSError`/`TimeoutError`, added SSRF/injection tests
+- **Shell Script Hardening** ([#57](https://github.com/lollonet/rpi-snapclient-usb/pull/57)) - Added input validation and safe quoting across setup scripts
+
+### Removed
+- **Dead Metadata Service** ([#59](https://github.com/lollonet/rpi-snapclient-usb/issues/59), [#61](https://github.com/lollonet/rpi-snapclient-usb/pull/61)) - Removed `common/docker/metadata-service/` (1,831 lines), tests, CI steps, and Docker build job. Metadata is served by the snapMULTI server
+
 ## [0.1.9] - 2026-03-02
 
 ### Fixed
