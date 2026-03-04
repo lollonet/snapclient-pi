@@ -45,8 +45,6 @@ jobs:
       - name: Hadolint (snapclient)
         run: hadolint --config .hadolint.yaml --failure-threshold warning common/docker/snapclient/Dockerfile
 
-      - name: Hadolint (metadata-service)
-        run: hadolint --config .hadolint.yaml --failure-threshold warning common/docker/metadata-service/Dockerfile
 
   test:
     name: Test

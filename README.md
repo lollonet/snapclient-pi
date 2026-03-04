@@ -157,8 +157,7 @@ rpi-snapclient-usb/
 │   └── docker/
 │       ├── snapclient/         # Snapclient Docker image
 │       ├── audio-visualizer/   # Spectrum analyzer (dBFS)
-│       ├── fb-display/         # Framebuffer display renderer
-│       └── metadata-service/   # Metadata service (deployed on server)
+│       └── fb-display/         # Framebuffer display renderer
 │
 ├── scripts/                    # Development scripts
 │   ├── ci-local.sh             # Local CI runner
