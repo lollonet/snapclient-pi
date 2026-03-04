@@ -94,6 +94,28 @@ Docker-based Snapcast client for Raspberry Pi with HiFiBerry DACs, featuring syn
 - Display: 9" touchscreen (1024x600) or 4K HDMI TV (3840x2160)
 - One of the supported audio HATs listed above, or a USB audio device
 
+### Compatibility Matrix
+
+#### Raspberry Pi Models
+
+| Model | Status | Notes |
+|-------|--------|-------|
+| Pi 4 (2GB) | Tested | Medium resource profile |
+| Pi 4 (4GB) | Tested | High resource profile |
+| Pi 4 (8GB) | Tested | High resource profile |
+| Pi 5 | Untested | Should work, high profile |
+| Pi 3B+ | Untested | Low resource profile |
+| Pi Zero 2 W | Untested | Low resource profile, no framebuffer display |
+
+#### Displays
+
+| Display | Resolution | Notes |
+|---------|-----------|-------|
+| Official 7" touchscreen | 800x480 | Tested |
+| 9" HDMI touchscreen | 1024x600 | Tested |
+| HDMI monitor 1080p | 1920x1080 | Tested |
+| 4K HDMI TV | 3840x2160 | Render capped at 1920x1080, scaled |
+
 ## Zero-Touch Auto-Install (Recommended)
 
 The easiest way to get started — no SSH, no terminal needed.
@@ -181,30 +203,108 @@ cd /opt/snapclient
 sudo docker compose up -d   # NOT restart — restart doesn't pick up .env changes
 ```
 
-## Verification
+## Post-Install Verification
 
-Check that everything is running:
+Follow these steps in order after installation to confirm everything works.
+
+### 1. Docker services running
 
 ```bash
-# Check Docker containers (all should show "healthy")
-sudo docker ps
-# Should show: snapclient, audio-visualizer, fb-display (all "healthy")
+sudo docker ps --format 'table {{.Names}}\t{{.Status}}'
+```
 
-# Check healthchecks
-sudo docker inspect --format='{{.State.Health.Status}}' snapclient
+Expected: all containers show `Up ... (healthy)`:
 
-# Verify resource limits are enforced
-sudo docker stats --no-stream
+```
+NAMES              STATUS
+fb-display         Up 2 minutes (healthy)
+audio-visualizer   Up 2 minutes (healthy)
+snapclient         Up 2 minutes (healthy)
+```
 
-# Check snapclient logs
-sudo docker logs -f snapclient
+### 2. Audio device detected
 
-# Check systemd services
-sudo systemctl status snapclient
-
-# Test audio device
+```bash
 aplay -l
 ```
+
+Expected: your HAT or USB device appears (e.g. `card 0: sndrpihifiberry`).
+
+### 3. Snapserver connection
+
+```bash
+sudo docker logs snapclient 2>&1 | grep -i "connected to"
+```
+
+Expected: `Connected to <server-ip>` message. If missing, check mDNS or set `SNAPSERVER` in `.env`.
+
+### 4. Display rendering
+
+For framebuffer mode, the screen should show cover art or standby artwork. Verify the framebuffer is accessible:
+
+```bash
+sudo docker logs fb-display 2>&1 | head -5
+```
+
+Expected: `Opened /dev/fb0: <width>x<height> @ <bpp>bpp`.
+
+### 5. Spectrum analyzer
+
+```bash
+curl -s -N --max-time 2 http://localhost:8081 2>/dev/null | head -1
+```
+
+Expected: a semicolon-separated string of dBFS values (e.g. `-90.0;-90.0;...`). Empty output means no audio is playing (normal when idle).
+
+### 6. Read-only filesystem (if enabled)
+
+```bash
+ro-mode status
+```
+
+Expected: `Read-only mode: enabled` with overlay active. Use `ro-mode disable && sudo reboot` to make changes.
+
+## Troubleshooting
+
+### Audio
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| No sound output | Wrong ALSA device | Check `SOUNDCARD` in `.env` matches `aplay -l` output. Use `default:CARD=<name>` format |
+| Choppy/stuttering | Buffer underrun | Increase `ALSA_BUFFER_TIME` (default 200000) or `ALSA_FRAGMENTS` (default 4) in `.env` |
+| Spectrum shows silence | No loopback | Snapclient must output to `default` device, not `hw:` directly |
+
+### Display
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Black screen | Wrong display mode | Check `DISPLAY_MODE` in `.env` (should be `framebuffer`) |
+| Cover art not updating | Stale metadata connection | `sudo docker restart fb-display` |
+| Wrong resolution | Override active | Remove `DISPLAY_RESOLUTION` from `.env` to auto-detect from framebuffer |
+| Stuck at 800x600 | Install video mode | Remove `video=HDMI-A-1:800x600@60` from `/boot/firmware/cmdline.txt` and reboot |
+
+### Network
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Snapserver not found | mDNS blocked | Set `SNAPSERVER=<ip>` in `.env`, or check firewall allows port 1704 |
+| Metadata disconnects | Server restart | fb-display auto-reconnects; check `METADATA_HOST` in `.env` points to server |
+
+### Docker
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Containers won't start | Resource limits | Check `sudo docker stats --no-stream`; reduce limits in `.env` if OOM |
+| `docker compose` not found | Old Docker | Run setup.sh again — it installs Docker CE with Compose v2 plugin |
+| overlay2 driver fails | Read-only FS | Expected on overlayfs root — setup.sh configures `fuse-overlayfs` automatically |
+
+### Read-Only Filesystem
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Cannot install/update | Overlay active | `ro-mode disable && sudo reboot`, then make changes |
+| Docker data lost on reboot | Expected | Docker volumes are on the overlay; persistent data uses bind mounts |
+| `/opt/snapclient` missing | Overlay reset | Re-run setup.sh or restore from backup |
 
 ## Docker Image
 
