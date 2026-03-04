@@ -246,15 +246,17 @@ For framebuffer mode, the screen should show cover art or standby artwork. Verif
 sudo docker logs fb-display 2>&1 | head -5
 ```
 
-Expected: `Opened /dev/fb0: <width>x<height> @ <bpp>bpp`.
+Expected: `Framebuffer: <width>x<height>, <bpp>bpp, stride=<stride>`.
 
 ### 5. Spectrum analyzer
 
+Port 8081 is a WebSocket-only endpoint. Check the container logs:
+
 ```bash
-curl -s -N --max-time 2 http://localhost:8081 2>/dev/null | head -1
+sudo docker logs audio-visualizer 2>&1 | tail -5
 ```
 
-Expected: a semicolon-separated string of dBFS values (e.g. `-90.0;-90.0;...`). Empty output means no audio is playing (normal when idle).
+Expected: `WebSocket server on :8081` and periodic data lines when audio is playing.
 
 ### 6. Read-only filesystem (if enabled)
 
