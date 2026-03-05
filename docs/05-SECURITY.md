@@ -55,7 +55,7 @@ No ports are exposed to the network. The visualizer WebSocket binds to localhost
 - Shell variables quoted to prevent injection
 
 ### fb-display
-- Artwork URLs validated (SSRF protection — no internal IPs, no file:// schemes)
+- Artwork URLs: relative paths (`/artwork/...`) are resolved against `METADATA_HOST`; full URLs from the server are trusted (low risk — server is under user control on trusted LAN)
 - WebSocket messages parsed with JSON decoder (no eval)
 - Framebuffer dimensions bounds-checked
 

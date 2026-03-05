@@ -93,7 +93,7 @@
 | NFR-03.3 | Minimal capabilities (`CAP_DROP: ALL` + specific adds) | All 3 containers |
 | NFR-03.4 | No secrets in repository | Enforced |
 | NFR-03.5 | Input validation in setup scripts | All user input |
-| NFR-03.6 | SSRF protection on artwork URLs | fb-display |
+| NFR-03.6 | Artwork URLs constrained to metadata server | fb-display |
 
 ### NFR-04: Compatibility
 
