@@ -49,7 +49,7 @@ Aspect-ratio-specific layout templates to optimize the display for different scr
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Unit tests | 67 | 80+ |
+| Unit tests | 94 (67 display + 27 visualizer) | 100+ |
 | HAT configs validated | 11/11 | 11/11 |
 | Shell scripts passing shellcheck | All | All |
 | CI pipeline | lint + test + review | Same |

@@ -13,7 +13,7 @@ uvx --with numpy --with pillow --with websockets --with requests pytest tests/ -
 | Test File | Tests | Covers |
 |-----------|-------|--------|
 | `test_fb_display.py` | 67 | Layout, pixel format conversion, scaling, color, badges, timing, spectrum |
-| `test_visualizer.py` | — | FFT, band computation, smoothing, WebSocket broadcast |
+| `test_visualizer.py` | 27 | FFT, band computation, smoothing, WebSocket broadcast |
 
 ### Test Categories
 
