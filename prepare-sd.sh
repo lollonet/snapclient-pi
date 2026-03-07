@@ -67,12 +67,15 @@ cp "$SCRIPT_DIR/install/snapclient.conf" "$DEST/"
 cp "$SCRIPT_DIR/install/firstboot.sh"    "$DEST/"
 cp "$SCRIPT_DIR/install/README.txt"      "$DEST/"
 
-# Copy project files
+# Copy project files (exclude build artifacts and dev-only files)
 for item in docker-compose.yml .env.example audio-hats docker public scripts; do
     if [ -e "$SCRIPT_DIR/common/$item" ]; then
         cp -r "$SCRIPT_DIR/common/$item" "$DEST/"
     fi
 done
+
+# Clean up Python build artifacts (wrong arch, waste of space on boot partition)
+find "$DEST" -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
 
 echo "  Copied $(du -sh "$DEST" | cut -f1) to boot partition."
 
