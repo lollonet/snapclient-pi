@@ -943,7 +943,10 @@ set_resource_limits "$RESOURCE_PROFILE"
 echo "Hardware profile: $RESOURCE_PROFILE ($(awk '/MemTotal/ {printf "%.1fGB RAM", $2/1024/1024}' /proc/meminfo), $(nproc) cores)"
 
 # Detect network type and set ALSA buffer defaults
-CONNECTION_TYPE="${CONNECTION_TYPE:-$(detect_connection_type)}"
+# Treat "auto" same as empty — trigger detection
+if [[ "${CONNECTION_TYPE:-auto}" == "auto" ]]; then
+    CONNECTION_TYPE=$(detect_connection_type)
+fi
 echo "Network: $CONNECTION_TYPE"
 
 # WiFi needs larger buffers due to inherent jitter (10-100ms)
@@ -1099,14 +1102,23 @@ fi
 # ── Network optimization ──
 if [[ "$CONNECTION_TYPE" == "wifi" ]]; then
     echo "WiFi detected — disabling power management for stable audio..."
-    iw dev wlan0 set power_save off 2>/dev/null || true
-    # Persistent across reboots via NetworkManager
+    # Find the active WiFi interface (may be wlan0, wlan1, wlp3s0, etc.)
+    WIFI_IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^wl/ && /state UP/ {print $2; exit}')
+    if [[ -n "$WIFI_IFACE" ]]; then
+        iw dev "$WIFI_IFACE" set power_save off 2>/dev/null || true
+        echo "  Power save disabled on $WIFI_IFACE"
+    fi
+    # Persistent across reboots via NetworkManager (only effective on read-write filesystem)
     if [[ -d /etc/NetworkManager/conf.d ]]; then
         cat > /etc/NetworkManager/conf.d/wifi-powersave-off.conf << 'NMEOF'
 [connection]
 wifi.powersave = 2
 NMEOF
-        echo "  WiFi power save disabled (persistent)"
+        if [[ "${ENABLE_READONLY:-false}" == "true" ]]; then
+            echo "  NM config written (note: lost on reboot with read-only filesystem)"
+        else
+            echo "  WiFi power save disabled (persistent)"
+        fi
     fi
     log_progress "WiFi power management: disabled"
 else

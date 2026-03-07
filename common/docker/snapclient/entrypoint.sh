@@ -6,6 +6,7 @@ SNAPSERVER_HOST="${SNAPSERVER_HOST:-}"
 SNAPSERVER_PORT="${SNAPSERVER_PORT:-1704}"
 HOST_ID="${HOST_ID:-snapclient}"
 SOUNDCARD="${SOUNDCARD:-default}"
+# Ethernet defaults; setup.sh overrides for WiFi (250/8)
 ALSA_BUFFER_TIME="${ALSA_BUFFER_TIME:-150}"
 ALSA_FRAGMENTS="${ALSA_FRAGMENTS:-4}"
 MIXER="${MIXER:-software}"

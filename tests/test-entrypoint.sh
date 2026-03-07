@@ -69,6 +69,66 @@ assert_mixer 'hardware:x;rm'     "REJECTED"          "semicolon in element rejec
 assert_mixer 'hardware:$(cmd)'   "REJECTED"          "cmd subst in element rejected"
 assert_mixer 'hardware:x&bg'     "REJECTED"          "ampersand in element rejected"
 
+# ── ALSA_BUFFER_TIME validation ──
+
+ALSA_VALIDATOR=$(mktemp)
+trap 'rm -f "$VALIDATOR" "$ALSA_VALIDATOR"' EXIT
+
+cat > "$ALSA_VALIDATOR" << 'ALSA_VALIDATION'
+#!/bin/sh
+ALSA_BUFFER_TIME="${ALSA_BUFFER_TIME:-150}"
+ALSA_FRAGMENTS="${ALSA_FRAGMENTS:-4}"
+
+case "${ALSA_BUFFER_TIME}" in
+    ''|*[!0-9]*) ALSA_BUFFER_TIME=150 ;;
+esac
+if [ "${ALSA_BUFFER_TIME}" -lt 50 ] || [ "${ALSA_BUFFER_TIME}" -gt 2000 ]; then
+    ALSA_BUFFER_TIME=150
+fi
+
+case "${ALSA_FRAGMENTS}" in
+    ''|*[!0-9]*) ALSA_FRAGMENTS=4 ;;
+esac
+if [ "${ALSA_FRAGMENTS}" -lt 2 ] || [ "${ALSA_FRAGMENTS}" -gt 16 ]; then
+    ALSA_FRAGMENTS=4
+fi
+
+echo "${ALSA_BUFFER_TIME}/${ALSA_FRAGMENTS}"
+ALSA_VALIDATION
+
+assert_alsa() {
+    local buf="$1" frag="$2" expected="$3" desc="$4"
+    actual=$(ALSA_BUFFER_TIME="$buf" ALSA_FRAGMENTS="$frag" sh "$ALSA_VALIDATOR" 2>/dev/null) || actual="ERROR"
+
+    if [[ "$actual" == "$expected" ]]; then
+        echo "  PASS: $desc (${buf}/${frag} -> ${actual})"
+        pass=$((pass + 1))
+    else
+        echo "  FAIL: $desc (${buf}/${frag} -> ${actual}, expected ${expected})"
+        fail=$((fail + 1))
+    fi
+}
+
+echo ""
+echo "Testing ALSA buffer validation..."
+
+# Valid values (pass through unchanged)
+assert_alsa "150" "4"  "150/4"   "ethernet defaults"
+assert_alsa "250" "8"  "250/8"   "wifi defaults"
+assert_alsa "50"  "2"  "50/2"    "minimum values"
+assert_alsa "2000" "16" "2000/16" "maximum values"
+
+# Out of range (fallback to defaults)
+assert_alsa "49"   "4"  "150/4"   "buffer below minimum"
+assert_alsa "2001" "4"  "150/4"   "buffer above maximum"
+assert_alsa "150"  "1"  "150/4"   "fragments below minimum"
+assert_alsa "150"  "17" "150/4"   "fragments above maximum"
+
+# Non-numeric (fallback to defaults)
+assert_alsa "abc"  "4"  "150/4"   "non-numeric buffer"
+assert_alsa "150"  "x"  "150/4"   "non-numeric fragments"
+assert_alsa ""     ""   "150/4"   "empty values use defaults"
+
 echo ""
 if [[ "$fail" -gt 0 ]]; then
     echo "FAILED: $fail tests failed, $pass passed"
