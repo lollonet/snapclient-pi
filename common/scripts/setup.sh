@@ -1041,6 +1041,8 @@ declare -A env_vars=(
     ["ALSA_BUFFER_TIME"]="$ALSA_BUFFER_TIME"
     ["ALSA_FRAGMENTS"]="$ALSA_FRAGMENTS"
     ["CONNECTION_TYPE"]="$CONNECTION_TYPE"
+    # Version tag (for display)
+    ["APP_VERSION"]="$(git -C "$COMMON_DIR/.." describe --tags --abbrev=0 2>/dev/null || git -C "$COMMON_DIR/.." rev-parse --short HEAD 2>/dev/null || echo "dev")"
 )
 
 for key in "${!env_vars[@]}"; do
