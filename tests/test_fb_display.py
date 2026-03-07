@@ -1,5 +1,6 @@
 """Tests for fb-display renderer (pure logic, no hardware)."""
 
+import asyncio
 import sys
 import os
 import time
@@ -446,6 +447,71 @@ class TestGetLanIp:
             raise OSError("no network")
         monkeypatch.setattr(socket, "socket", _raise)
         assert fb_display._get_lan_ip() == "?.?.?.?"
+
+
+class TestDiscoverSnapservers:
+    """Test mDNS server discovery."""
+
+    def test_discovers_servers(self, monkeypatch):
+        """Mock zeroconf to simulate server discovery."""
+        import types
+
+        discovered = []
+
+        class FakeServiceInfo:
+            def __init__(self, addresses):
+                self.addresses = addresses
+
+        class FakeZeroconf:
+            def get_service_info(self, type_, name):
+                return FakeServiceInfo([b"\xc0\xa8\x3f\x68"])  # 192.168.63.104
+
+            def close(self):
+                pass
+
+        class FakeBrowser:
+            def __init__(self, zc, type_, listener):
+                # Simulate discovering a service
+                listener.add_service(zc, type_, "Snapcast._snapcast._tcp.local.")
+
+            def cancel(self):
+                pass
+
+        fake_zeroconf_mod = types.ModuleType("zeroconf")
+        fake_zeroconf_mod.Zeroconf = FakeZeroconf
+        fake_zeroconf_mod.ServiceBrowser = FakeBrowser
+        monkeypatch.setitem(sys.modules, "zeroconf", fake_zeroconf_mod)
+
+        servers = asyncio.run(
+            fb_display.discover_snapservers(timeout=0.1)
+        )
+        assert "192.168.63.104" in servers
+
+    def test_empty_discovery(self, monkeypatch):
+        """No servers found returns empty list."""
+        import types
+
+        class FakeZeroconf:
+            def close(self):
+                pass
+
+        class FakeBrowser:
+            def __init__(self, zc, type_, listener):
+                pass  # No services discovered
+
+            def cancel(self):
+                pass
+
+        fake_zeroconf_mod = types.ModuleType("zeroconf")
+        fake_zeroconf_mod.Zeroconf = FakeZeroconf
+        fake_zeroconf_mod.ServiceBrowser = FakeBrowser
+        monkeypatch.setitem(sys.modules, "zeroconf", fake_zeroconf_mod)
+
+        import asyncio
+        servers = asyncio.run(
+            fb_display.discover_snapservers(timeout=0.1)
+        )
+        assert servers == []
 
 
 class TestIsSpectrumActive:
