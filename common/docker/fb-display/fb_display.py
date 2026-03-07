@@ -52,7 +52,46 @@ def _get_lan_ip() -> str:
 
 
 LAN_IP = _get_lan_ip()
-SNAPSERVER = METADATA_HOST
+
+SNAPCAST_MDNS_TYPE = "_snapcast._tcp.local."
+DISCOVERY_TIMEOUT = 5.0
+MAX_RECONNECT_BEFORE_DISCOVERY = 3
+
+
+async def discover_snapservers(timeout: float = DISCOVERY_TIMEOUT) -> list[str]:
+    """Discover snapcast servers via mDNS. Returns list of IPs."""
+    from zeroconf import ServiceBrowser, Zeroconf
+
+    servers: list[str] = []
+
+    class _Listener:
+        def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+            info = zc.get_service_info(type_, name)
+            if info and info.addresses:
+                ip = socket.inet_ntoa(info.addresses[0])
+                if ip not in servers:
+                    servers.append(ip)
+                    logger.info(f"mDNS: discovered snapcast server at {ip}")
+
+        def remove_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+            pass
+
+        def update_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+            pass
+
+    zc = Zeroconf()
+    browser = ServiceBrowser(zc, SNAPCAST_MDNS_TYPE, _Listener())
+    try:
+        await asyncio.sleep(timeout)
+    finally:
+        browser.cancel()
+        zc.close()
+    return servers
+
+
+# Mutable server state (updated on mDNS discovery/failover)
+metadata_host: str = METADATA_HOST
+snapserver_display: str = METADATA_HOST
 
 # Render resolution: from DISPLAY_RESOLUTION env var if set,
 # otherwise auto-detected from framebuffer (capped at 1920x1080).
@@ -623,7 +662,7 @@ def fetch_artwork(url: str) -> Image.Image | None:
     try:
         full_url = url
         if url.startswith("/"):
-            full_url = f"http://{METADATA_HOST}:{METADATA_HTTP_PORT}{url}"
+            full_url = f"http://{metadata_host}:{METADATA_HTTP_PORT}{url}"
         resp = requests.get(full_url, timeout=3)
         if resp.status_code == 200:
             cached_artwork = Image.open(io.BytesIO(resp.content))
@@ -813,7 +852,7 @@ def render_base_frame() -> Image.Image:
             bg.paste(brand_resized, (brand_x, brand_y), brand_resized)
 
     # Bottom bar: status line (LAN IP → server) — static, centered below clock
-    status_text = f"{LAN_IP}  →  {SNAPSERVER}"
+    status_text = f"{LAN_IP}  →  {snapserver_display}"
     status_font_size = max(10, L["clock_h"] // 3)
     status_font = _get_font(status_font_size)
     bbox = draw.textbbox((0, 0), status_text, font=status_font)
@@ -1240,19 +1279,46 @@ async def _handle_metadata_message(message: str) -> None:
 
 
 async def metadata_ws_reader() -> None:
-    """Connect to server metadata WebSocket and subscribe with CLIENT_ID."""
-    ws_url = f"ws://{METADATA_HOST}:{METADATA_WS_PORT}"
+    """Connect to server metadata WebSocket with mDNS failover.
 
-    async def _subscribe_and_handle(ws: Any) -> None:
-        """Send subscription on connect, then handle messages."""
-        if CLIENT_ID:
-            await ws.send(json.dumps({"subscribe": CLIENT_ID}))
-            logger.info(f"Subscribed to metadata for client '{CLIENT_ID}'")
+    On connection failure, retries the current server up to 3 times,
+    then discovers alternative servers via mDNS and switches.
+    """
+    global metadata_host, snapserver_display, metadata_version
+    consecutive_failures = 0
 
-    await websocket_client_loop(
-        ws_url, "metadata", _handle_metadata_message,
-        on_connect=_subscribe_and_handle,
-    )
+    while True:
+        ws_url = f"ws://{metadata_host}:{METADATA_WS_PORT}"
+        try:
+            async with websockets.connect(ws_url) as ws:
+                logger.info(f"Connected to metadata WebSocket: {ws_url}")
+                if CLIENT_ID:
+                    await ws.send(json.dumps({"subscribe": CLIENT_ID}))
+                    logger.info(f"Subscribed to metadata for client '{CLIENT_ID}'")
+                consecutive_failures = 0
+                async for message in ws:
+                    await _handle_metadata_message(message)
+        except Exception as e:
+            consecutive_failures += 1
+            logger.debug(f"Metadata WS error (attempt {consecutive_failures}): {e}")
+
+            if consecutive_failures >= MAX_RECONNECT_BEFORE_DISCOVERY:
+                logger.info("Discovering snapcast servers via mDNS...")
+                servers = await discover_snapservers()
+                candidates = [s for s in servers if s != metadata_host] or servers
+                if candidates:
+                    new_host = candidates[0]
+                    if new_host != metadata_host:
+                        logger.info(f"Switching server: {metadata_host} → {new_host}")
+                        metadata_host = new_host
+                        snapserver_display = new_host
+                        metadata_version += 1
+                    consecutive_failures = 0
+                else:
+                    logger.warning("No snapcast servers found via mDNS")
+                    consecutive_failures = 0
+
+            await asyncio.sleep(5)
 
 
 def is_spectrum_active() -> bool:
