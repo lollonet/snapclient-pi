@@ -1047,7 +1047,11 @@ progress 8 "Creating systemd service..."
 log_progress "Creating snapclient.service..."
 
 # Install mDNS discovery script (runs before Docker services start)
-install -m 755 "$COMMON_DIR/scripts/discover-server.sh" /usr/local/bin/snapclient-discover
+if [[ -f "$COMMON_DIR/scripts/discover-server.sh" ]]; then
+    install -m 755 "$COMMON_DIR/scripts/discover-server.sh" /usr/local/bin/snapclient-discover
+else
+    echo "Warning: discover-server.sh not found, skipping mDNS boot discovery"
+fi
 
 # Docker Compose profiles are handled via COMPOSE_PROFILES in .env
 cat > /etc/systemd/system/snapclient.service << EOF
@@ -1061,7 +1065,7 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=${INSTALL_DIR}
-ExecStartPre=/usr/local/bin/snapclient-discover
+ExecStartPre=-/usr/local/bin/snapclient-discover
 ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
 TimeoutStartSec=0
