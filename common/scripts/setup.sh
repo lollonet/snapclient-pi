@@ -1081,32 +1081,10 @@ echo "Systemd service created and enabled"
 echo ""
 
 # ============================================
-# Step 12: Pre-pull container images
-# ============================================
-progress 9 "Pulling container images..."
-start_progress_animation 9 60 40  # Animate during long image pull
-
-cd "$INSTALL_DIR"
-log_progress "docker compose pull: snapclient"
-log_progress "docker compose pull: audio-visualizer"
-log_progress "docker compose pull: fb-display"
-if ! docker compose pull 2>&1; then
-    stop_progress_animation
-    log_progress "ERROR: Failed to pull container images"
-    echo ""
-    echo "ERROR: Failed to pull container images."
-    echo "  Without images the system cannot start."
-    echo "  Check network connectivity and try: docker compose pull"
-    exit 1
-fi
-log_progress "All images pulled successfully"
-echo ""
-
-# ============================================
-# Step 13: Configure Read-Only Filesystem (optional)
+# Step 12: Configure Read-Only Filesystem (optional, before image pull)
 # ============================================
 if [[ "${ENABLE_READONLY:-false}" == "true" ]]; then
-    progress 10 "Configuring read-only filesystem..."
+    progress 9 "Configuring read-only filesystem..."
     log_progress "Installing fuse-overlayfs..."
 
     # Install fuse-overlayfs for Docker compatibility with overlayfs root
@@ -1131,17 +1109,6 @@ if [[ "${ENABLE_READONLY:-false}" == "true" ]]; then
         # Restart Docker
         log_progress "Restarting Docker..."
         systemctl start docker
-
-        # Re-pull images (storage was cleared)
-        log_progress "Re-pulling container images..."
-        cd "$INSTALL_DIR"
-        if ! docker compose pull 2>&1; then
-            log_progress "ERROR: Failed to re-pull images after storage driver change"
-            echo "ERROR: Failed to pull images after storage driver change."
-            echo "  Previous images were wiped. The system cannot start without them."
-            echo "  Check network connectivity and try: docker compose pull"
-            exit 1
-        fi
     else
         log_progress "Docker already using fuse-overlayfs, skipping reconfiguration..."
     fi
@@ -1165,6 +1132,28 @@ if [[ "${ENABLE_READONLY:-false}" == "true" ]]; then
 else
     echo "Read-only filesystem: skipped (ENABLE_READONLY=false)"
 fi
+echo ""
+
+# ============================================
+# Step 13: Pull container images (once, after storage driver is final)
+# ============================================
+progress 10 "Pulling container images..."
+start_progress_animation 10 60 40  # Animate during long image pull
+
+cd "$INSTALL_DIR"
+log_progress "docker compose pull: snapclient"
+log_progress "docker compose pull: audio-visualizer"
+log_progress "docker compose pull: fb-display"
+if ! docker compose pull 2>&1; then
+    stop_progress_animation
+    log_progress "ERROR: Failed to pull container images"
+    echo ""
+    echo "ERROR: Failed to pull container images."
+    echo "  Without images the system cannot start."
+    echo "  Check network connectivity and try: docker compose pull"
+    exit 1
+fi
+log_progress "All images pulled successfully"
 echo ""
 
 # ============================================
