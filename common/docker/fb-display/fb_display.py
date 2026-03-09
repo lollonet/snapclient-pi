@@ -854,6 +854,8 @@ def render_base_frame() -> Image.Image:
             bg.paste(brand_resized, (brand_x, brand_y), brand_resized)
 
     # Bottom bar: status line (LAN IP → server  client_ver  /  server_ver)
+    # APP_VERSION already carries its own "v" prefix (from git describe, e.g. "v0.2.4").
+    # srv_ver is prefixed inline as "srv X.Y.Z" — asymmetry is intentional.
     srv_ver = server_info.get("server_version", "")
     ver_parts = []
     if APP_VERSION:
