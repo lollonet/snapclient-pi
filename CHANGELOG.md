@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-03-09
+
+### Added
+- **Server version in status bar** ([#76](https://github.com/lollonet/rpi-snapclient-usb/pull/76)) — Bottom bar now shows the snapMULTI server version received via WebSocket `server_info` message (e.g. `192.168.x.x  →  snapvideo  v0.3.7`). Falls back to `APP_VERSION` env var when no WS data is available yet
+- **App version in status bar** ([#75](https://github.com/lollonet/rpi-snapclient-usb/pull/75)) — `APP_VERSION` env var (set by `setup.sh` from git tag) shown in bottom bar as fallback when server version is not yet available
+
 ## [0.2.3] - 2026-03-07
 
 ### Added
