@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-03-10
+
+### Fixed
+- **Snapclient Built from santcasp Fork** ([#79](https://github.com/lollonet/rpi-snapclient-usb/pull/79)) — Dockerfile now clones from `lollonet/santcasp` (develop branch) matching the snapMULTI server build. Docker cache busting via `SANTCASP_SHA` ARG was previously inert (ARG declared but not referenced in any `RUN` step); fixed by echoing the SHA in the `git clone` step. Added `grep -q` assertion after `sed` to fail fast if the version pattern isn't found.
+
 ## [0.2.6] - 2026-03-10
 
 ### Added
