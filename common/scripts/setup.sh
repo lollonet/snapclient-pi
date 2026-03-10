@@ -335,12 +335,16 @@ show_hat_options() {
     echo "9) JustBoom DAC"
     echo "10) JustBoom Digi"
     echo "11) USB Audio Device"
+    echo "12) HiFiBerry AMP2"
+    echo "13) HiFiBerry DAC+ ADC Pro"
+    echo "14) Innomaker DAC PRO"
+    echo "15) Waveshare WM8960"
 }
 
 validate_choice() {
     local choice="$1"
     local max="$2"
-    if [[ ! "$choice" =~ ^[1-9]$|^1[01]$ ]] || [ "$choice" -gt "$max" ]; then
+    if [[ ! "$choice" =~ ^[1-9]$|^1[0-9]$ ]] || [ "$choice" -gt "$max" ]; then
         echo "Invalid choice. Please enter a number between 1 and $max."
         exit 1
     fi
@@ -360,6 +364,10 @@ get_hat_config() {
         9) echo "justboom-dac" ;;
         10) echo "justboom-digi" ;;
         11) echo "usb-audio" ;;
+        12) echo "hifiberry-amp2" ;;
+        13) echo "hifiberry-dacplusadc" ;;
+        14) echo "innomaker-dac-pro" ;;
+        15) echo "waveshare-wm8960" ;;
         *) echo "Invalid choice"; exit 1 ;;
     esac
 }
@@ -407,6 +415,10 @@ detect_hat() {
         local cards
         cards=$(aplay -l 2>/dev/null || true)
         case "$cards" in
+            # NOTE: sndrpihifiberry is shared by hifiberry-dac, hifiberry-amp2, and
+            # hifiberry-dacplusadc. Without EEPROM, all three fall back to hifiberry-dac
+            # (same overlay hifiberry-dacplus; AMP2 works, DAC+ADC Pro may not init).
+            # HiFiBerry boards ship with EEPROM so this path is rarely reached.
             *sndrpihifiberry*)  echo "hifiberry-dac"  ; return ;;
             *IQaudIODAC*)       echo "iqaudio-dac"    ; return ;;
             *IQaudIOCODEC*)     echo "iqaudio-codec"  ; return ;;
@@ -439,8 +451,8 @@ if [ "$AUTO_MODE" = true ]; then
     HAT_CONFIG=$(resolve_hat_config_name "$AUDIO_HAT")
 else
     show_hat_options
-    read -rp "Enter choice [1-11]: " hat_choice
-    validate_choice "$hat_choice" 11
+    read -rp "Enter choice [1-15]: " hat_choice
+    validate_choice "$hat_choice" 15
     HAT_CONFIG=$(get_hat_config "$hat_choice")
 fi
 
