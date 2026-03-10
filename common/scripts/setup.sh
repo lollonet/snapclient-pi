@@ -379,19 +379,26 @@ detect_hat() {
         # Order matters: more specific patterns first
         case "$hat_product" in
             # HiFiBerry (EEPROM: "DAC 2 HD", "HiFiBerry DAC+", "Digi+", etc.)
-            *DAC*2*HD*)                                  echo "hifiberry-dac2hd" ; return ;;
-            Digi+*|*Digi\ +*|*HiFiBerry*Digi*)          echo "hifiberry-digi"   ; return ;;
-            *HiFiBerry*DAC*|DAC+*|*DAC\ +*)             echo "hifiberry-dac"    ; return ;;
+            # More-specific patterns first: AMP2 and DAC+ADC before generic DAC+
+            *DAC*2*HD*)                                  echo "hifiberry-dac2hd"     ; return ;;
+            Digi+*|*Digi\ +*|*HiFiBerry*Digi*)          echo "hifiberry-digi"        ; return ;;
+            *AMP*2*|*Amp*2*)                             echo "hifiberry-amp2"        ; return ;;
+            *DAC*ADC*)                                   echo "hifiberry-dacplusadc"  ; return ;;
+            *HiFiBerry*DAC*|DAC+*|*DAC\ +*)             echo "hifiberry-dac"         ; return ;;
             # IQaudio/Raspberry Pi (EEPROM: "Pi-DigiAMP+", "Pi-CodecZero", "Raspberry Pi DAC Plus")
-            *Pi-DigiAMP*|*DigiAMP*)                     echo "iqaudio-digiamp"  ; return ;;
-            *Pi-Codec*|*CodecZero*|*Codec*Zero*)        echo "iqaudio-codec"    ; return ;;
-            *Raspberry*Pi*DAC*|*IQaudio*DAC*|*IQaudIO*) echo "iqaudio-dac"      ; return ;;
+            *Pi-DigiAMP*|*DigiAMP*)                     echo "iqaudio-digiamp"       ; return ;;
+            *Pi-Codec*|*CodecZero*|*Codec*Zero*)        echo "iqaudio-codec"         ; return ;;
+            *Raspberry*Pi*DAC*|*IQaudio*DAC*|*IQaudIO*) echo "iqaudio-dac"           ; return ;;
             # Allo (EEPROM varies)
-            *Boss*|*BOSS*)                              echo "allo-boss"        ; return ;;
-            *DigiOne*|*Allo*Digi*)                      echo "allo-digione"     ; return ;;
+            *Boss*|*BOSS*)                              echo "allo-boss"             ; return ;;
+            *DigiOne*|*Allo*Digi*)                      echo "allo-digione"          ; return ;;
             # JustBoom (EEPROM: "JustBoom DAC HAT", "JustBoom Digi HAT")
-            *JustBoom*Digi*)                            echo "justboom-digi"    ; return ;;
-            *JustBoom*DAC*|*JustBoom*Amp*)              echo "justboom-dac"     ; return ;;
+            *JustBoom*Digi*)                            echo "justboom-digi"         ; return ;;
+            *JustBoom*DAC*|*JustBoom*Amp*)              echo "justboom-dac"          ; return ;;
+            # Innomaker (EEPROM: "HiFi DAC PRO", "ES9038", or "Katana")
+            *Innomaker*|*INNO*|*ES9038*|*Katana*)      echo "innomaker-dac-pro"     ; return ;;
+            # Waveshare (EEPROM: "WM8960 Audio HAT")
+            *WM8960*|*Waveshare*Audio*)                 echo "waveshare-wm8960"      ; return ;;
         esac
         echo "Warning: Unknown HAT product '$hat_product', falling back to USB" >&2
     fi
@@ -405,7 +412,9 @@ detect_hat() {
             *IQaudIOCODEC*)     echo "iqaudio-codec"  ; return ;;
             *BossDAC*)          echo "allo-boss"      ; return ;;
             *sndallodigione*)   echo "allo-digione"   ; return ;;
-            *sndrpijustboom*)   echo "justboom-dac"   ; return ;;
+            *sndrpijustboom*)   echo "justboom-dac"       ; return ;;
+            *Katana*)           echo "innomaker-dac-pro"  ; return ;;
+            *wm8960soundcard*)  echo "waveshare-wm8960"   ; return ;;
         esac
     fi
 
