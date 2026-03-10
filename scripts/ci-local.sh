@@ -63,7 +63,7 @@ echo ""
 
 run_check "Bash syntax (setup.sh)" "bash -n common/scripts/setup.sh" || true
 run_check "HAT configurations" "bash tests/test-hat-configs.sh" || true
-run_check "HAT config count" "test \$(ls -1 common/audio-hats/*.conf | wc -l | tr -d ' ') -eq 11" || true
+run_check "HAT config count" "test \$(ls -1 common/audio-hats/*.conf | wc -l | tr -d ' ') -eq 15" || true
 
 # Summary
 echo "========================================="

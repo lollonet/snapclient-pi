@@ -57,7 +57,7 @@ git push
     ├── hadolint (Dockerfiles, optional)
     ├── bash syntax check
     ├── HAT config validation
-    └── HAT count check (11 expected)
+    └── HAT count check (15 expected)
 ```
 
 Install: `bash scripts/install-hooks.sh`
