@@ -21,8 +21,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # SANTCASP_SHA busts the Docker cache when santcasp has new commits
 ARG SANTCASP_SHA=latest
 WORKDIR /build
-RUN git clone --depth 1 --branch develop https://github.com/lollonet/santcasp.git snapcast && \
-    sed -i 's/VERSION [0-9.]*-santcasp/VERSION 0.34.1/' snapcast/CMakeLists.txt
+RUN echo "santcasp SHA: $SANTCASP_SHA" && \
+    git clone --depth 1 --branch develop https://github.com/lollonet/santcasp.git snapcast && \
+    sed -i 's/VERSION [0-9.]*-santcasp/VERSION 0.34.1/' snapcast/CMakeLists.txt && \
+    grep -q 'VERSION 0.34.1' snapcast/CMakeLists.txt
 
 WORKDIR /build/snapcast
 RUN cmake -S . -B build \
