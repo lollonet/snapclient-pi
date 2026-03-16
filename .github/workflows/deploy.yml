@@ -26,6 +26,7 @@ jobs:
           HOST: ${{ secrets.HOST }}
           DEPLOY_USER: ${{ secrets.USER }}
         run: |
+          set -euo pipefail
           KEY_FILE=$(mktemp)
           echo "$SSH_KEY" > "$KEY_FILE"
           chmod 600 "$KEY_FILE"
@@ -71,9 +72,9 @@ jobs:
 
             echo "Updating files..."
             sudo cp /tmp/snapclient-deploy/docker-compose.yml docker-compose.yml
-            sudo rsync -a /tmp/snapclient-deploy/docker/ docker/
-            sudo rsync -a /tmp/snapclient-deploy/public/ public/
-            sudo rsync -a /tmp/snapclient-deploy/audio-hats/ audio-hats/
+            sudo rsync -a --delete /tmp/snapclient-deploy/docker/ docker/
+            sudo rsync -a --delete /tmp/snapclient-deploy/public/ public/
+            sudo rsync -a --delete /tmp/snapclient-deploy/audio-hats/ audio-hats/
             rm -rf /tmp/snapclient-deploy
 
             echo "Updating APP_VERSION in .env..."
