@@ -1064,7 +1064,7 @@ declare -A env_vars=(
     ["CONNECTION_TYPE"]="$CONNECTION_TYPE"
     # Version tag (for display) — prefer VERSION file baked by prepare-sd.sh,
     # fall back to git describe (dev clones), then short SHA, then "dev".
-    ["APP_VERSION"]="$(cat "$PROJECT_DIR/VERSION" 2>/dev/null || git -C "$PROJECT_DIR" describe --tags --abbrev=0 2>/dev/null || git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "dev")"
+    ["APP_VERSION"]="$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || git -C "$PROJECT_DIR" describe --tags --abbrev=0 2>/dev/null || git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "dev")"
 )
 
 for key in "${!env_vars[@]}"; do
