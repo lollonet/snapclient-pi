@@ -70,6 +70,7 @@ jobs:
           build-args: SANTCASP_SHA=${{ steps.santcasp.outputs.sha }}
 
       - name: Scan image with Trivy
+        id: trivy-snapclient
         uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
@@ -79,7 +80,7 @@ jobs:
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: trivy-results.sarif
           category: trivy-snapclient
@@ -129,6 +130,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Scan image with Trivy
+        id: trivy-visualizer
         uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
@@ -138,7 +140,7 @@ jobs:
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: trivy-results.sarif
           category: trivy-visualizer
@@ -188,6 +190,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Scan image with Trivy
+        id: trivy-fb-display
         uses: aquasecurity/trivy-action@0.30.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
@@ -197,7 +200,7 @@ jobs:
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: trivy-results.sarif
           category: trivy-fb-display
