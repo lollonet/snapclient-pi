@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.10] — 2026-03-16
+
+### Fixed
+- **Silent failure in LAN IP detection** ([#88](https://github.com/lollonet/rpi-snapclient-usb/pull/88)) — `_get_lan_ip()` in `fb_display.py`: `except Exception:` narrowed to `except OSError as e:` with warning log
+
+### Security
+- **Non-root Docker images** ([#86](https://github.com/lollonet/rpi-snapclient-usb/pull/86)) — added `USER 1000` and `--chown=1000:1000` to `snapclient`, `audio-visualizer`, and `fb-display` Dockerfiles; pinned `uv:latest` → `uv:0.6.3`
+
+### CI/CD
+- **GitHub Environments for deploy** ([#85](https://github.com/lollonet/rpi-snapclient-usb/pull/85)) — `HOST_SNAPVIDEO`/`HOST_SNAPDIGI` secrets moved to environment-scoped `snapvideo`/`snapdigi` environments; `deploy.yml` declares `environment:` for automatic secret resolution; concurrency group prevents concurrent deploys to same device
+- **Trivy container scanning** ([#87](https://github.com/lollonet/rpi-snapclient-usb/pull/87)) — added vulnerability scanning to all build jobs (HIGH/CRITICAL, exit-code 0)
+
+## [0.2.9] — 2026-03-16
+
+### Fixed
+- **fb-display: skip redraw on unchanged server_info** ([#83](https://github.com/lollonet/rpi-snapclient-usb/pull/83)) — avoid unnecessary framebuffer writes when `server_info` content is identical to previous
+- **setup.sh: read APP_VERSION from VERSION file** ([#82](https://github.com/lollonet/rpi-snapclient-usb/pull/82)) — `APP_VERSION` now read from the `VERSION` file baked by `prepare-sd.sh` rather than hard-coded
+
+### Maintenance
+- **GitHub Actions: Node.js 24 compatible versions** ([#81](https://github.com/lollonet/rpi-snapclient-usb/pull/81)) — updated `actions/checkout`, `docker/setup-buildx-action`, etc. to versions that support Node.js 24 runtime
+
+## [0.2.8] — 2026-03-10
+
+### Added
+- **Automated CI deploy with overlayroot bake** ([#80](https://github.com/lollonet/rpi-snapclient-usb/pull/80)) — `deploy.yml` reusable workflow: copies files, pulls images, bakes deployment to SD card lower layer (`/media/root-ro`) so updates survive Pi reboots; `docker-build.yml` calls it for both `snapvideo` and `snapdigi` after all build jobs pass
+
 ## [0.2.7] - 2026-03-10
 
 ### Fixed
