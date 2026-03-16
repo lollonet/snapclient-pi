@@ -111,11 +111,11 @@ jobs:
                   /opt/snapclient/.env \
                   /opt/snapclient/docker-compose.yml \
                   "$BAKE_DIR/opt/snapclient/"
-              sudo rsync -a /opt/snapclient/docker/ \
+              sudo rsync -a --delete /opt/snapclient/docker/ \
                   "$BAKE_DIR/opt/snapclient/docker/"
-              sudo rsync -a /opt/snapclient/public/ \
+              sudo rsync -a --delete /opt/snapclient/public/ \
                   "$BAKE_DIR/opt/snapclient/public/"
-              sudo rsync -a /opt/snapclient/audio-hats/ \
+              sudo rsync -a --delete /opt/snapclient/audio-hats/ \
                   "$BAKE_DIR/opt/snapclient/audio-hats/"
               sudo rsync -a /var/lib/docker/image/ \
                   "$BAKE_DIR/var/lib/docker/image/"
