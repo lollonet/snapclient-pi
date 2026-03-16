@@ -29,25 +29,28 @@ jobs:
           KEY_FILE=$(mktemp)
           echo "$SSH_KEY" > "$KEY_FILE"
           chmod 600 "$KEY_FILE"
-          SCP="scp -i $KEY_FILE -o StrictHostKeyChecking=no"
-          SSH="ssh -i $KEY_FILE -o StrictHostKeyChecking=no ${DEPLOY_USER}@${HOST}"
-          $SSH "mkdir -p /tmp/snapclient-deploy/docker/snapclient \
+          trap 'rm -f "$KEY_FILE"' EXIT
+          scp_() { scp -i "$KEY_FILE" -o StrictHostKeyChecking=no "$@"; }
+          ssh_() { ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no "${DEPLOY_USER}@${HOST}" "$@"; }
+          ssh_ "mkdir -p /tmp/snapclient-deploy/docker/snapclient \
                          /tmp/snapclient-deploy/docker/audio-visualizer \
                          /tmp/snapclient-deploy/docker/fb-display \
-                         /tmp/snapclient-deploy/public"
-          $SCP common/docker-compose.yml \
+                         /tmp/snapclient-deploy/public \
+                         /tmp/snapclient-deploy/audio-hats"
+          scp_ common/docker-compose.yml \
                "${DEPLOY_USER}@${HOST}:/tmp/snapclient-deploy/"
-          $SCP common/docker/snapclient/entrypoint.sh \
+          scp_ common/docker/snapclient/entrypoint.sh \
                "${DEPLOY_USER}@${HOST}:/tmp/snapclient-deploy/docker/snapclient/"
-          $SCP common/docker/audio-visualizer/visualizer.py \
+          scp_ common/docker/audio-visualizer/visualizer.py \
                "${DEPLOY_USER}@${HOST}:/tmp/snapclient-deploy/docker/audio-visualizer/"
-          $SCP common/docker/fb-display/fb_display.py \
+          scp_ common/docker/fb-display/fb_display.py \
                common/docker/fb-display/logo.png \
                common/docker/fb-display/snapforge-text.png \
                "${DEPLOY_USER}@${HOST}:/tmp/snapclient-deploy/docker/fb-display/"
-          $SCP -r common/public/ \
+          scp_ -r common/public/ \
                "${DEPLOY_USER}@${HOST}:/tmp/snapclient-deploy/public/"
-          rm -f "$KEY_FILE"
+          scp_ common/audio-hats/*.conf \
+               "${DEPLOY_USER}@${HOST}:/tmp/snapclient-deploy/audio-hats/"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.5
@@ -70,6 +73,7 @@ jobs:
             sudo cp /tmp/snapclient-deploy/docker-compose.yml docker-compose.yml
             sudo rsync -a /tmp/snapclient-deploy/docker/ docker/
             sudo rsync -a /tmp/snapclient-deploy/public/ public/
+            sudo rsync -a /tmp/snapclient-deploy/audio-hats/ audio-hats/
             rm -rf /tmp/snapclient-deploy
 
             echo "Updating APP_VERSION in .env..."
@@ -110,6 +114,8 @@ jobs:
                   "$BAKE_DIR/opt/snapclient/docker/"
               sudo rsync -a /opt/snapclient/public/ \
                   "$BAKE_DIR/opt/snapclient/public/"
+              sudo rsync -a /opt/snapclient/audio-hats/ \
+                  "$BAKE_DIR/opt/snapclient/audio-hats/"
               sudo rsync -a /var/lib/docker/image/ \
                   "$BAKE_DIR/var/lib/docker/image/"
               sudo rsync -aX --ignore-existing /var/lib/docker/fuse-overlayfs/ \
