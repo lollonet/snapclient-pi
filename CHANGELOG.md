@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.13] — 2026-03-17
+
+### CI/CD
+- **Fix HOST secret in reusable workflow deploys** ([#fix](https://github.com/lollonet/rpi-snapclient-usb)) — GitHub Actions does not expose environment-scoped secrets to `workflow_call` reusable workflows (only `workflow_dispatch`). Changed to explicit `HOST_SNAPVIDEO` / `HOST_SNAPDIGI` repo-level secrets passed via the `secrets:` block. Environment declarations retained for protection rules and deployment tracking.
+
+## [0.2.12] — 2026-03-17
+
+### CI/CD
+- Tagging to trigger v0.2.11 with correct HOST secrets
+
 ## [0.2.11] — 2026-03-17
 
 ### CI/CD
