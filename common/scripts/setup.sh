@@ -434,13 +434,15 @@ detect_hat() {
     # I2C bus scan: detect DAC chips by address, works even without overlay loaded.
     # Many cheap HATs (InnoMaker, Waveshare, some Allo) ship without an EEPROM, so
     # the overlay is never loaded and aplay -l never shows the card. Raw I2C probing
-    # identifies the chip regardless. Loads i2c-dev transiently; no side effects.
+    # identifies the chip regardless. modprobe i2c-dev persists until reboot.
     # Known addresses:
     #   0x4C-0x4F  PCM5122 (InnoMaker HiFi DAC, IQaudio DAC+, Allo Boss, JustBoom DAC, …)
+    #              NOTE: shared with TMP112, ADS1x1x, PCA9685 and other non-DAC chips.
+    #              Safe on a bare Pi + DAC HAT; may false-positive on mixed I2C buses.
     #   0x1A       WM8960  (Waveshare WM8960)
     #   0x3A       WM8804  (HiFiBerry Digi, JustBoom Digi, Allo DigiOne — no EEPROM variants)
     if ! command -v i2cdetect &>/dev/null; then
-        apt-get install -y -q i2c-tools 2>/dev/null || true
+        apt-get install -y -q i2c-tools || true
     fi
     modprobe i2c-dev 2>/dev/null || true
     if command -v i2cdetect &>/dev/null; then
