@@ -444,6 +444,10 @@ detect_hat() {
     if ! command -v i2cdetect &>/dev/null; then
         apt-get install -y -q i2c-tools || true
     fi
+    # Enable i2c_arm at runtime in case dtparam=i2c_arm=on is not yet in config.txt
+    # (e.g. on first boot before setup.sh has written the overlay). dtparam applies
+    # the param immediately without reboot; modprobe i2c-dev exposes /dev/i2c-*.
+    dtparam i2c_arm=on 2>/dev/null || true
     modprobe i2c-dev 2>/dev/null || true
     if command -v i2cdetect &>/dev/null; then
         local bus addr result=""
