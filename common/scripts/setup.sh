@@ -645,11 +645,11 @@ log_progress "apt-get update"
 start_progress_animation 1 0 12  # Animate during apt-get
 
 # Base packages (always needed)
-BASE_PACKAGES="ca-certificates curl alsa-utils avahi-daemon avahi-utils git"
+BASE_PACKAGES="ca-certificates curl alsa-utils avahi-daemon avahi-utils"
 
 apt-get update
 log_progress "apt-get install: ca-certificates curl..."
-log_progress "apt-get install: alsa-utils avahi-daemon avahi-utils git..."
+log_progress "apt-get install: alsa-utils avahi-daemon avahi-utils..."
 # shellcheck disable=SC2086
 apt-get install -y $BASE_PACKAGES
 log_progress "System packages installed"
@@ -1123,7 +1123,7 @@ declare -A env_vars=(
     ["CONNECTION_TYPE"]="$CONNECTION_TYPE"
     # Version tag (for display) — prefer VERSION file baked by prepare-sd.sh,
     # fall back to git describe (dev clones), then short SHA, then "dev".
-    ["APP_VERSION"]="$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || git -C "$PROJECT_DIR" describe --tags --abbrev=0 2>/dev/null || git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "dev")"
+    ["APP_VERSION"]="$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo "dev")"
 )
 
 for key in "${!env_vars[@]}"; do
