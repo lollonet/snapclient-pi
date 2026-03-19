@@ -875,6 +875,14 @@ if [ -n "$BOOT_CONFIG" ]; then
         # Add device tree overlay for HAT (skip if USB audio)
         if [ -n "$HAT_OVERLAY" ]; then
             echo "dtoverlay=$HAT_OVERLAY"
+
+            # Enable I2C for HATs that use it for DAC configuration
+            # PCM512x (HiFiBerry, InnoMaker, IQaudio, Allo), WM8960, WM8804 all need I2C
+            case "$HAT_OVERLAY" in
+                hifiberry-*|allo-boss|iqaudio-*|innomaker-*|allo-katana*|waveshare-wm8960)
+                    echo "dtparam=i2c_arm=on"
+                    ;;
+            esac
         fi
 
         # Disable onboard audio

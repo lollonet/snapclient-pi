@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **HiFiBerry DAC+ auto-detect misconfiguration** ([#96](https://github.com/lollonet/rpi-snapclient-usb/issues/96)) — Changed `hifiberry-dacplus` overlay to `hifiberry-dacplus-std` to force Pi as clock master; the auto-detect overlay incorrectly identifies Standard boards as Pro when EEPROM is absent, causing DAC to expect non-existent oscillator
+- **I2C enablement for PCM512x-based HATs** — Added `dtparam=i2c_arm=on` to config.txt for HiFiBerry, InnoMaker, IQaudio, Allo, and Waveshare WM8960 HATs; kernel driver needs I2C access to configure DAC clocks and registers
+
 ## [0.2.16] — 2026-03-18
 
 ### Added
