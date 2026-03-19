@@ -1472,6 +1472,13 @@ if mountpoint -q /media/root-ro 2>/dev/null; then
     sudo rsync -aX --ignore-existing /var/lib/docker/fuse-overlayfs/ \
         "$BAKE_DIR/var/lib/docker/fuse-overlayfs/"
 
+    # Verify bake wrote content (detect rsync failures)
+    if [[ ! -d "$BAKE_DIR/var/lib/docker/image" ]] || \
+       [[ -z "$(ls -A "$BAKE_DIR/var/lib/docker/image" 2>/dev/null)" ]]; then
+        echo "ERROR: Bake verification failed -- Docker image index not written"
+        exit 1
+    fi
+
     sudo sync
     log_progress "Docker images baked to SD card"
 else

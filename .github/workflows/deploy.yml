@@ -99,8 +99,8 @@ jobs:
             echo "Stopping old containers..."
             docker compose down --remove-orphans || true
 
-            echo "Pruning unused images to free tmpfs..."
-            docker image prune -af || true
+            echo "Pruning dangling images to free tmpfs..."
+            docker image prune -f || true
 
             echo "Pulling latest images..."
             docker compose pull || { echo "ERROR: docker compose pull failed"; exit 1; }
