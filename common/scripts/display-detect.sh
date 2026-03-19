@@ -52,5 +52,7 @@ fi
 
 # Reconcile running containers with new profile
 cd "$INSTALL_DIR"
+# Note: docker compose implicitly reads .env from working directory ($INSTALL_DIR)
+# Keep this cd before the compose invocation or move the .env reference
 echo "Reconciling containers (COMPOSE_PROFILES=$PROFILE)..."
 docker compose up -d --remove-orphans

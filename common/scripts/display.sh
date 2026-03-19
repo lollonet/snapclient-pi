@@ -16,7 +16,10 @@ has_display() {
     done
 
     # DRM status files exist but none say "connected" → headless
-    $found_status && return 1
+    # Explicit check for clarity — avoids executing $found_status as a command
+    if [[ "$found_status" == "true" ]]; then
+        return 1
+    fi
 
     # No DRM status files at all (very old firmware) → assume display if fb0 exists
     return 0

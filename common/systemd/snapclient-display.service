@@ -10,6 +10,9 @@ WorkingDirectory=/opt/snapclient
 StandardOutput=journal
 StandardError=journal
 RemainAfterExit=yes
+# Retry if Docker daemon is slow at first boot (30s wait may expire)
+Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
