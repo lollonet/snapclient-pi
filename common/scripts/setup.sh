@@ -1005,7 +1005,7 @@ set_resource_limits() {
             SNAPCLIENT_MEM_LIMIT="64M"
             SNAPCLIENT_MEM_RESERVE="32M"
             SNAPCLIENT_CPU_LIMIT="0.5"
-            VISUALIZER_MEM_LIMIT="96M"
+            VISUALIZER_MEM_LIMIT="128M"
             VISUALIZER_MEM_RESERVE="48M"
             VISUALIZER_CPU_LIMIT="0.5"
             FBDISPLAY_MEM_LIMIT="192M"
@@ -1028,7 +1028,7 @@ set_resource_limits() {
             # Pi 4 4GB+, Pi 5
             SNAPCLIENT_MEM_LIMIT="96M"
             SNAPCLIENT_MEM_RESERVE="48M"
-            SNAPCLIENT_CPU_LIMIT="0.5"
+            SNAPCLIENT_CPU_LIMIT="1.0"
             VISUALIZER_MEM_LIMIT="192M"
             VISUALIZER_MEM_RESERVE="96M"
             VISUALIZER_CPU_LIMIT="1.5"
