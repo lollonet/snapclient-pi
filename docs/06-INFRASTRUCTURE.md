@@ -70,9 +70,9 @@ Auto-detected by `setup.sh` based on Pi RAM:
 
 | Profile | RAM | CPU (snap) | Mem (snap) | CPU (viz) | Mem (viz) | CPU (fb) | Mem (fb) |
 |---------|-----|-----------|-----------|----------|----------|---------|---------|
-| Minimal | <2GB | 0.5 | 64M | 1.0 | 128M | 1.0 | 256M |
+| Minimal | <2GB | 0.5 | 64M | 0.5 | 128M | 0.5 | 192M |
 | Standard | 2-4GB | 0.5 | 64M | 1.0 | 128M | 1.0 | 256M |
-| Performance | 8GB+ | 0.5 | 64M | 1.0 | 128M | 1.0 | 256M |
+| Performance | 8GB+ | 1.0 | 96M | 1.5 | 192M | 1.5 | 384M |
 
 ## Deployment Methods
 
@@ -89,7 +89,7 @@ Host computer                    Raspberry Pi
                                  └────────────────────┘
 ```
 
-Boot path: `prepare-sd.sh` → cloud-init → `firstboot.sh` → `setup.sh --auto` → reboot
+Boot path: server `prepare-sd.sh` → cloud-init → server `firstboot.sh` → client `setup.sh --auto` → reboot
 
 ### 2. Live Update (Development)
 
@@ -106,13 +106,6 @@ Bind-mounted files (fb_display.py, visualizer.py) update without image rebuild.
 sudo bash common/scripts/setup.sh
 # Interactive: select HAT, resolution, server
 ```
-
-## Deployment Hosts
-
-| Host | IP | Role | Notes |
-|------|-----|------|-------|
-| snapvideo | 192.168.63.104 | Server + Client | 1920x1080 32bpp, HiFiBerry |
-| snapdigi | 192.168.63.5 | Client only | Often offline |
 
 ## Systemd Services
 
