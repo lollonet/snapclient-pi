@@ -1215,55 +1215,31 @@ else
     echo "⚠ Container security options not found in docker-compose.yml"
 fi
 
-# ── Network optimization ──
+# ── System tuning (shared with server — scripts/common/system-tune.sh) ──
+TUNE_SCRIPT=""
+for _tune_candidate in \
+    "$COMMON_DIR/../scripts/common/system-tune.sh" \
+    "$INSTALL_DIR/scripts/common/system-tune.sh" \
+    "$(dirname "$0")/common/system-tune.sh"; do
+    [[ -f "$_tune_candidate" ]] && TUNE_SCRIPT="$_tune_candidate" && break
+done
+if [[ -n "$TUNE_SCRIPT" ]]; then
+    # shellcheck source=common/system-tune.sh
+    source "$TUNE_SCRIPT"
+else
+    echo "Warning: system-tune.sh not found, skipping shared tuning"
+fi
+
 if [[ "$CONNECTION_TYPE" == "wifi" ]]; then
-    echo "WiFi detected — disabling power management for stable audio..."
-    # Find the active WiFi interface (may be wlan0, wlan1, wlp3s0, etc.)
-    WIFI_IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^wl/ && /state UP/ {print $2; exit}')
-    if [[ -n "$WIFI_IFACE" ]]; then
-        iw dev "$WIFI_IFACE" set power_save off 2>/dev/null || true
-        echo "  Power save disabled on $WIFI_IFACE"
-    fi
-    # Persistent across reboots via NetworkManager (only effective on read-write filesystem)
-    if [[ -d /etc/NetworkManager/conf.d ]]; then
-        cat > /etc/NetworkManager/conf.d/wifi-powersave-off.conf << 'NMEOF'
-[connection]
-wifi.powersave = 2
-NMEOF
-        if [[ "${ENABLE_READONLY:-false}" == "true" ]]; then
-            echo "  NM config written (note: lost on reboot with read-only filesystem)"
-        else
-            echo "  WiFi power save disabled (persistent)"
-        fi
-    fi
+    tune_wifi_powersave
     log_progress "WiFi power management: disabled"
 else
     echo "Ethernet detected — no WiFi optimization needed"
     log_progress "Network: ethernet (no WiFi tuning)"
 fi
 
-# ── Audio performance tuning ──
-# CPU governor: 'performance' avoids ramp-up latency during audio playback
-if [[ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]]; then
-    for gov in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-        echo performance > "$gov" 2>/dev/null || true
-    done
-    # Persist across reboots via kernel cmdline or cpufrequtils
-    if command -v update-rc.d &>/dev/null && [[ -d /etc/default ]]; then
-        echo 'GOVERNOR="performance"' > /etc/default/cpufrequtils 2>/dev/null || true
-    fi
-    echo "✓ CPU governor set to performance"
-fi
-
-# USB autosuspend: disable to prevent DAC/audio device sleep
-if [[ -f /sys/module/usbcore/parameters/autosuspend ]]; then
-    echo -1 > /sys/module/usbcore/parameters/autosuspend 2>/dev/null || true
-    # Persist via udev rule
-    mkdir -p /etc/udev/rules.d
-    echo 'ACTION=="add", SUBSYSTEM=="usb", ATTR{power/autosuspend}="-1"' \
-        > /etc/udev/rules.d/50-usb-no-autosuspend.rules 2>/dev/null || true
-    echo "✓ USB autosuspend disabled"
-fi
+tune_cpu_governor
+tune_usb_autosuspend
 
 # Verify read_only and tmpfs settings
 if grep -q "read_only: true" "$INSTALL_DIR/docker-compose.yml" 2>/dev/null; then
@@ -1350,42 +1326,44 @@ if [[ "${ENABLE_READONLY:-false}" == "true" ]]; then
         sleep 1
     done
 
-    # Check if Docker is already using fuse-overlayfs (idempotent)
+    # Configure Docker daemon (fuse-overlayfs for overlayroot compatibility)
+    tune_docker_daemon --fuse-overlayfs
+
     current_driver=$(docker info --format '{{.Driver}}' 2>/dev/null || echo "none")
     if [[ "$current_driver" != "fuse-overlayfs" ]]; then
-        # Switch storage driver (requires wiping existing data)
-        log_progress "Switching Docker storage driver to fuse-overlayfs..."
-        systemctl stop docker
-
-        # Configure Docker to use fuse-overlayfs storage driver
-        # (required because overlay2 doesn't work on overlayfs root)
-        mkdir -p /etc/docker
-        if [[ -f "$COMMON_DIR/docker/daemon.json" ]]; then
-            cp "$COMMON_DIR/docker/daemon.json" /etc/docker/daemon.json
-        else
-            echo '{"storage-driver": "fuse-overlayfs"}' > /etc/docker/daemon.json
+        # Verify fuse-overlayfs is available before wiping Docker data
+        if ! command -v fuse-overlayfs &>/dev/null; then
+            log_progress "Installing fuse-overlayfs..."
+            apt-get install -y -qq fuse-overlayfs >/dev/null 2>&1 || true
         fi
-
-        # Clear existing Docker data (incompatible with new storage driver)
-        log_progress "Clearing Docker data (storage driver change)..."
-        rm -rf /var/lib/docker/*
-
-        # Restart Docker and wait for it to be ready
-        log_progress "Restarting Docker..."
-        systemctl start docker
-
-        # Wait for Docker to be fully operational
-        for i in {1..60}; do
-            if docker info >/dev/null 2>&1; then
-                log_progress "Docker ready with fuse-overlayfs storage driver"
-                break
-            fi
-            sleep 1
-            if [[ $i -eq 60 ]]; then
-                log_progress "ERROR: Docker failed to start after storage driver change"
-                exit 1
-            fi
-        done
+        if ! command -v fuse-overlayfs &>/dev/null; then
+            log_progress "ERROR: fuse-overlayfs not available — keeping current storage driver"
+            log_progress "       Read-only mode will be skipped to avoid frozen broken state"
+            ENABLE_READONLY=false
+        else
+            log_progress "Switching Docker storage driver to fuse-overlayfs..."
+            systemctl stop docker
+            rm -rf /var/lib/docker/*
+            systemctl start docker
+            for i in {1..60}; do
+                if docker info >/dev/null 2>&1; then
+                    new_driver=$(docker info --format '{{.Driver}}' 2>/dev/null)
+                    if [[ "$new_driver" == "fuse-overlayfs" ]]; then
+                        log_progress "Docker ready with fuse-overlayfs storage driver"
+                    else
+                        log_progress "WARNING: Docker started but driver is '$new_driver', not fuse-overlayfs"
+                        log_progress "         Read-only mode will be skipped"
+                        ENABLE_READONLY=false
+                    fi
+                    break
+                fi
+                sleep 1
+                if [[ $i -eq 60 ]]; then
+                    log_progress "ERROR: Docker failed to start after storage driver change"
+                    exit 1
+                fi
+            done
+        fi
     else
         log_progress "Docker already using fuse-overlayfs, skipping reconfiguration..."
     fi
