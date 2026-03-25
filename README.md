@@ -1,5 +1,7 @@
 # Raspberry Pi Snapcast Client with HiFiBerry & Cover Display
 
+> **Requires [snapMULTI](https://github.com/lollonet/snapMULTI) server.** This is the client component of the snapMULTI multiroom audio system. Install the server first — the unified installer handles both server and client setup.
+
 Docker-based Snapcast client for Raspberry Pi with HiFiBerry DACs, featuring synchronized multiroom audio and visual cover art display.
 
 ## Multiroom Audio Architecture
@@ -121,27 +123,22 @@ Docker-based Snapcast client for Raspberry Pi with HiFiBerry DACs, featuring syn
 | HDMI monitor 1080p | 1920x1080 | Tested |
 | 4K HDMI TV | 3840x2160 | Render capped at 1920x1080, scaled |
 
-## Zero-Touch Auto-Install (Recommended)
+## Installation
 
-The easiest way to get started — no SSH, no terminal needed.
+### Unified Installer (Recommended)
+
+Use the snapMULTI unified installer — it handles both server and client:
 
 1. Flash **Raspberry Pi OS Lite (64-bit)** with Raspberry Pi Imager
    - Configure WiFi and hostname in the Imager settings
 2. Re-insert SD card in your computer
-3. Run `./prepare-sd.sh` (auto-detects boot partition), or manually copy `install/` folder as `snapclient/` to the boot partition
-4. Eject SD card, insert in Pi, power on
-5. Wait ~5 minutes — Pi auto-detects your audio HAT, installs everything, and reboots
+3. Run `prepare-sd.sh` from the [snapMULTI](https://github.com/lollonet/snapMULTI) project
+4. Choose **"Audio Player"** (client only) or **"Server + Player"** (both)
+5. Eject SD card, insert in Pi, power on — installation takes ~5-10 minutes
 
 > **HAT auto-detection**: Uses a 3-step detection chain — EEPROM (`/proc/device-tree/hat/product`) → ALSA card name → I2C bus scan. The I2C scan detects HATs that ship without an EEPROM (InnoMaker, Waveshare, some Allo boards) by probing known chip addresses directly. Falls back to USB audio if nothing is found.
 
-> **Custom settings**: Edit `snapclient/snapclient.conf` on the boot partition before step 4 to override defaults (resolution, display mode, band mode, snapserver host).
-
-| File | Purpose |
-|------|---------|
-| `prepare-sd.sh` | Copies files to boot partition, patches `firstrun.sh` |
-| `install/snapclient.conf` | Config with sensible defaults (`AUDIO_HAT=auto`) |
-| `install/firstboot.sh` | Auto-runs on first boot, chains `setup.sh --auto` |
-| `install/README.txt` | 5-line quick reference |
+> **Custom settings**: Edit `snapmulti/client/snapclient.conf` on the boot partition before step 5 to override defaults (resolution, display mode, band mode, snapserver host).
 
 ## Manual Setup
 
@@ -162,39 +159,33 @@ The setup script installs Docker CE, automatically configures your audio HAT and
 
 ```
 rpi-snapclient-usb/
-├── install/                    # Zero-touch auto-install files
-│   ├── snapclient.conf         # Config defaults (AUDIO_HAT=auto)
-│   ├── firstboot.sh            # First-boot installer (runs once)
-│   └── README.txt              # 5-line quick reference
-│
-├── prepare-sd.sh               # Copy files to SD boot partition
+├── install/
+│   └── snapclient.conf         # Config defaults (AUDIO_HAT=auto)
 │
 ├── common/
-│   ├── scripts/setup.sh        # Main installation script (--auto mode)
-│   ├── docker-compose.yml      # Unified Docker services
+│   ├── scripts/
+│   │   ├── setup.sh            # Main installation script (--auto mode)
+│   │   ├── discover-server.sh  # mDNS server discovery (boot-time)
+│   │   ├── display.sh          # Display detection functions
+│   │   ├── display-detect.sh   # Boot-time display profile reconciliation
+│   │   └── ro-mode.sh          # Read-only filesystem management
+│   ├── docker-compose.yml      # Docker services (snapclient, visualizer, fb-display)
 │   ├── .env.example            # Environment template
 │   ├── audio-hats/             # Audio HAT configurations (16 files)
-│   │   ├── hifiberry-dac.conf
-│   │   ├── hifiberry-digi.conf
-│   │   ├── hifiberry-dac2hd.conf
-│   │   ├── iqaudio-*.conf
-│   │   ├── allo-*.conf
-│   │   ├── justboom-*.conf
-│   │   └── usb-audio.conf
 │   └── docker/
 │       ├── snapclient/         # Snapclient Docker image
 │       ├── audio-visualizer/   # Spectrum analyzer (dBFS)
 │       └── fb-display/         # Framebuffer display renderer
 │
 ├── scripts/                    # Development scripts
-│   ├── ci-local.sh             # Local CI runner
 │   └── install-hooks.sh        # Git hooks installer
 │
-├── tests/                      # Test scripts
-│   └── test-hat-configs.sh     # HAT config validation
+├── tests/                      # Test and validation scripts
 │
 └── .github/workflows/          # CI/CD pipelines
 ```
+
+> **Note**: This repo is included as a git submodule in [snapMULTI](https://github.com/lollonet/snapMULTI) at `client/`. The server's `prepare-sd.sh` copies the necessary files to the SD card; the server's `firstboot.sh` runs `setup.sh --auto` during first boot.
 
 ## Configuration
 

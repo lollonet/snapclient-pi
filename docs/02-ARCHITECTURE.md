@@ -1,3 +1,5 @@
+**Status: Reflects implementation as of v0.2.19**
+
 # Architecture
 
 ## System Context
@@ -70,7 +72,7 @@ Snapserver ──TCP:1704──▶ snapclient ──▶ ALSA multi_out
 ### Metadata Data Flow
 
 ```
-snapMULTI metadata-service
+snapMULTI metadata-service (centralized)
         │
         ├──WS:8082──▶ fb-display subscribes with CLIENT_ID
         │              receives: title, artist, album, duration,
@@ -125,17 +127,17 @@ common/
 │       └── snapforge-text.png  # SnapForge text logo
 ├── scripts/
 │   ├── setup.sh                # Main installer (interactive + --auto)
-│   └── discover-server.sh      # mDNS discovery on boot (systemd)
-├── audio-hats/                 # 11 HAT configuration files
+│   ├── discover-server.sh      # mDNS discovery on boot (systemd)
+│   ├── display.sh              # Display detection functions
+│   ├── display-detect.sh       # Boot-time display profile reconciliation
+│   └── ro-mode.sh              # Read-only filesystem management
+├── audio-hats/                 # 15 HAT configuration files
 │   └── <hat-name>.conf         # HAT_OVERLAY, HAT_CARD, HAT_RATE per HAT
 └── public/                     # Web UI assets (standby artwork, etc.)
 
 install/
 ├── snapclient.conf             # User-facing config defaults
-├── firstboot.sh                # First-boot chain (runs once)
 └── README.txt                  # Quick reference
-
-prepare-sd.sh                   # SD card preparation (macOS/Linux)
 ```
 
 ## Key Design Decisions
@@ -161,3 +163,4 @@ prepare-sd.sh                   # SD card preparation (macOS/Linux)
 - Single metadata-service on the server handles all source types (MPD, Spotify, AirPlay, Tidal)
 - Clients just subscribe — no source-specific logic needed
 - Cover art cached once on server, served to all clients via HTTP
+- Eliminates N clients making N redundant API calls

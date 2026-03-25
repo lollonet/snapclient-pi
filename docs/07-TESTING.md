@@ -1,3 +1,5 @@
+**Status: Reflects implementation as of v0.2.19**
+
 # Testing
 
 ## Test Suite
@@ -36,8 +38,13 @@ uvx --with numpy --with pillow --with websockets --with requests pytest tests/ -
 |--------|--------|-------|--------|
 | `test-hat-configs.sh` | Pre-push hook, CI | 15 | HAT config file format, required fields, count (15) |
 | `test-entrypoint.sh` | CI | 22 | MIXER validation (11), ALSA buffer validation (11) |
+| `test-resource-profiles.sh` | CI | — | Resource profile detection logic |
 | shellcheck | Pre-push hook, CI | — | All `.sh` files pass shellcheck |
 | bash syntax | Pre-push hook, CI | — | `bash -n` on all scripts |
+
+### Current Test Status
+
+Python tests are **not yet integrated into CI** — they run locally during development but CI only runs shell tests and linting. This is a known gap.
 
 ## CI Pipeline
 
@@ -50,8 +57,8 @@ PR opened / push
     │   └── HAT config validation
     │
     ├── Test job
-    │   ├── pytest tests/ -v
-    │   └── entrypoint validation
+    │   ├── Shell test validation
+    │   └── Resource profile tests
     │
     └── Claude Code Review
         └── Automated review with severity levels
@@ -86,7 +93,8 @@ After deployment, verify using the [Post-Install Verification Checklist](../READ
 - Time formatting and progress calculation
 - Spectrum smoothing and idle detection
 
-### Gaps (Known)
+### Known Gaps
+- Python tests not in CI pipeline
 - No integration tests (would require real ALSA loopback + framebuffer)
 - No end-to-end metadata subscription test
 - Setup script testing is syntax-only (no functional tests)

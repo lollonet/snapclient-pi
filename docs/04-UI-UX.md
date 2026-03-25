@@ -1,3 +1,5 @@
+**Status: Reflects implementation as of v0.2.19**
+
 # UI/UX Design
 
 ## Display Layout
@@ -28,7 +30,7 @@ The framebuffer display uses a fixed layout with four main areas:
 │   │  ━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░░  1:23 / 5:54      │   │
 │   └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│       192.168.63.5  →  snapvideo  •  v0.2.4  /  srv 0.3.7  │
+│       192.168.63.5  →  snapvideo  •  v0.2.19  /  srv 0.3.14  │
 │   ┌──────┐        Thu 05 Mar · 14:32:18        ┌────────┐  │
 │   │ LOGO │                                     │ VOL 🔊 │  │
 │   └──────┘                                     └────────┘  │
@@ -39,7 +41,7 @@ The framebuffer display uses a fixed layout with four main areas:
 
 | Area | Position | Content |
 |------|----------|---------|
-| Album Art | Top-left | Square cover art, fetched from metadata service |
+| Album Art | Top-left | Square cover art, fetched from centralized metadata service |
 | Info Panel | Top-right | Source, title, artist, album, format badge |
 | Spectrum | Center | Real-time frequency bars (rainbow gradient) |
 | Progress Bar | Above bottom bar | Elapsed/total time, filled progress indicator |
@@ -63,7 +65,7 @@ Format string: `CODEC · SAMPLE_RATE · BIT_DEPTH` (e.g., `FLAC · 44.1kHz · 16
 Centered above the bottom bar, shows client identity and version in dim text:
 
 ```
-192.168.63.104  →  snapvideo  •  v0.2.4  /  srv 0.3.7
+192.168.63.104  →  snapvideo  •  v0.2.19  /  srv 0.3.14
 ```
 
 | Part | Source | Fallback |
@@ -74,9 +76,9 @@ Centered above the bottom bar, shows client identity and version in dim text:
 | Server version | `server_info` WebSocket message | omitted |
 
 Version combinations:
-- Both: `v0.2.4  /  srv 0.3.7`
-- Client only: `v0.2.4`
-- Server only: `srv 0.3.7`
+- Both: `v0.2.19  /  srv 0.3.14`
+- Client only: `v0.2.19`
+- Server only: `srv 0.3.14`
 - Neither: status line shows IP and server name only
 
 ## Spectrum Analyzer
@@ -118,11 +120,11 @@ When no audio is playing for an extended period:
 | ARM (Pi) | Little-endian | BGRA `[B][G][R][X]` | RGB565 |
 | PowerPC | Big-endian | XRGB `[X][R][G][B]` | RGB565 |
 
-## Planned: Multi-Display Layout Templates
+## Future: Multi-Display Layout Templates
 
-Future support for aspect-ratio-specific templates:
-- 16:9 (standard HDMI)
-- 4:3 (legacy displays)
-- ~16:10 (1024x600 touchscreens)
+Planned support for aspect-ratio-specific templates:
+- 16:9 (standard HDMI) — current layout
+- 4:3 (legacy displays) — taller spectrum, smaller art
+- ~16:10 (1024x600 touchscreens) — optimized proportions
 
 Each template would optimize art size, info panel width, and spectrum height for the target ratio.

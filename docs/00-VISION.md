@@ -1,3 +1,5 @@
+**Status: Reflects implementation as of v0.2.19**
+
 # Vision
 
 ## Project Identity
@@ -5,11 +7,11 @@
 **Name**: rpi-snapclient-usb
 **Author**: Claudio Loletti
 **License**: MIT
-**Repository**: [github.com/lollonet/rpi-snapclient-usb](https://github.com/lollonet/rpi-snapclient-usb)
+**Repository**: Component of [snapMULTI](https://github.com/lollonet/snapMULTI) (included as git submodule at `client/`)
 
 ## Mission
 
-Turn any Raspberry Pi with an audio HAT into a turnkey multiroom audio endpoint with visual feedback — album art, track metadata, and real-time spectrum analysis on a framebuffer display.
+Turn any Raspberry Pi with an audio HAT into a turnkey multiroom audio endpoint with visual feedback — album art, track metadata, and real-time spectrum analysis on a framebuffer display. This is the **client component** of the snapMULTI multiroom audio appliance ecosystem.
 
 ## Problem Statement
 
@@ -24,7 +26,7 @@ Each of these steps is error-prone and undocumented for non-technical users. The
 
 ## Target Audience
 
-DIY audiophile and home automation community — specifically Snapcast and HiFiBerry users who want a polished, zero-configuration audio endpoint. The project bridges the gap between Snapcast's server capabilities (handled by [snapMULTI](https://github.com/lollonet/snapMULTY)) and consumer-grade ease of use on the client side.
+DIY audiophile and home automation community — specifically Snapcast and HiFiBerry users who want a polished, zero-configuration audio endpoint. The project bridges the gap between Snapcast's server capabilities (handled by [snapMULTI](https://github.com/lollonet/snapMULTI)) and consumer-grade ease of use on the client side.
 
 ## Design Principles
 
@@ -36,21 +38,24 @@ DIY audiophile and home automation community — specifically Snapcast and HiFiB
 
 ## Relationship to snapMULTI
 
-This project is the **client component** of the snapMULTI ecosystem:
+This project is the **client component** of the snapMULTI multiroom audio appliance:
 
 ```
-snapMULTI (server)          rpi-snapclient-usb (client)
-├── Snapserver              ├── Snapclient (audio)
-├── MPD / Spotify / AirPlay ├── Audio Visualizer (spectrum)
-├── Metadata Service ──────>├── FB Display (cover art + UI)
-└── myMPD (web UI)          └── Auto-detection + installer
+snapMULTI (server)                    rpi-snapclient-usb (client)
+├── Snapserver (audio streaming)      ├── Snapclient (audio output)
+├── MPD / Spotify / AirPlay / Tidal   ├── Audio Visualizer (spectrum analysis)
+├── Metadata Service (centralized) ───>├── FB Display (cover art + metadata)
+└── myMPD (web control)               └── Auto-detection + installer
 ```
 
-snapMULTI includes this repo as a git submodule at `client/`. The unified installer (`prepare-sd.sh`) can deploy server, client, or both on the same Pi.
+snapMULTI includes this repo as a git submodule at `client/`. The unified installer (`prepare-sd.sh`) can deploy:
+1. **Audio Player** (client only)
+2. **Music Server** (server only)
+3. **Server + Player** (both on same Pi)
 
 ## Success Criteria
 
-- Zero-touch install completes in under 10 minutes
-- Audio plays within 30 seconds of boot
-- Cover art and metadata appear without user configuration
-- System survives unexpected power loss without corruption
+- ✅ Zero-touch install completes in under 10 minutes
+- ✅ Audio plays within 30 seconds of boot
+- ✅ Cover art and metadata appear without user configuration
+- ✅ System survives unexpected power loss without corruption

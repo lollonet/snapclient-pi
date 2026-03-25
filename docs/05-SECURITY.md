@@ -1,3 +1,5 @@
+**Status: Reflects implementation as of v0.2.19**
+
 # Security
 
 ## Threat Model
@@ -20,10 +22,10 @@ All three containers follow defense-in-depth:
 
 | Control | snapclient | audio-visualizer | fb-display |
 |---------|-----------|-----------------|-----------|
-| `read_only: true` | Yes | Yes | Yes |
-| `no-new-privileges` | Yes | Yes | Yes |
-| `cap_drop: ALL` | Yes | Yes | Yes |
-| Non-root (uid 1000) | Yes | Yes | Yes |
+| `read_only: true` | ✅ Yes | ✅ Yes | ✅ Yes |
+| `no-new-privileges` | ✅ Yes | ✅ Yes | ✅ Yes |
+| `cap_drop: ALL` | ✅ Yes | ✅ Yes | ✅ Yes |
+| Non-root (uid 1000) | ✅ Yes | ✅ Yes | ✅ Yes |
 | `tmpfs` for writes | `/tmp:32M` | `/tmp:32M` | `/tmp:64M` |
 | Resource limits | CPU + memory | CPU + memory | CPU + memory |
 
@@ -74,7 +76,7 @@ No ports are exposed to the network. The visualizer WebSocket binds to localhost
 ## Filesystem Security
 
 ### Read-Only Root (default)
-- Root filesystem mounted read-only via raspi-config overlayfs
+- Root filesystem mounted read-only via overlayfs (enabled by default via `ENABLE_READONLY=true`)
 - All writes go to RAM-backed tmpfs (lost on reboot)
 - Docker uses `fuse-overlayfs` storage driver (kernel overlay2 fails on overlayfs root)
 - `ro-mode.sh enable/disable/status` to manage

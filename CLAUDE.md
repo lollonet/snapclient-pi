@@ -1,6 +1,8 @@
 # CLAUDE.md — rpi-snapclient-usb
 
 Raspberry Pi Snapcast client with auto-detection, Docker services, and framebuffer display.
+**Requires snapMULTI server** — included as a git submodule at `client/` in the server repo.
+Installation is handled by the server's `prepare-sd.sh` → `firstboot.sh` → client `setup.sh`.
 
 ## Architecture
 
@@ -12,11 +14,15 @@ common/
 │   ├── snapclient/             # Core audio client (ALSA → Snapserver)
 │   ├── audio-visualizer/       # FFT spectrum via WebSocket (port 8081)
 │   └── fb-display/             # Framebuffer renderer (/dev/fb0)
-├── scripts/setup.sh            # Main installer (--auto supported)
+├── scripts/
+│   ├── setup.sh                # Main installer (--auto supported)
+│   ├── discover-server.sh      # mDNS server discovery (boot-time)
+│   ├── display.sh              # Display detection functions
+│   ├── display-detect.sh       # Boot-time display profile reconciliation
+│   └── ro-mode.sh              # Read-only filesystem management
 ├── public/                     # Web UI assets
 └── audio-hats/                 # HAT overlay configs
 install/snapclient.conf         # User-facing config defaults
-prepare-sd.sh                   # SD card auto-install prep
 ```
 
 ## Key Rules
@@ -63,7 +69,7 @@ Use `_snapcast._tcp` (port 1704), **never** `_snapcast-ctrl._tcp`. RPC port = st
 - Band count auto-detected by display from first WebSocket message
 
 ### Deployment
-- **SD card**: `prepare-sd.sh` patches firstrun.sh (Bullseye) or cloud-init user-data (Bookworm+) for auto-install
+- **SD card**: Server's `prepare-sd.sh` copies client files to boot partition; server's `firstboot.sh` runs `setup.sh --auto`
 - **Live update**: rsync changed files + `docker compose up -d --force-recreate`
 - Bind-mounted files: `fb_display.py`, `visualizer.py` — no image rebuild needed
 - Device hosts: `snapdigi` (192.168.63.5), `snapvideo` — SSH user `claudio`

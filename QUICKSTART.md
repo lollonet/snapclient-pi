@@ -2,16 +2,16 @@
 
 Get your Raspberry Pi Snapcast client running in 5 minutes.
 
-> **Prefer zero-touch?** See the [Zero-Touch Auto-Install](README.md#zero-touch-auto-install-recommended) in the README — no SSH or terminal needed.
+> **Prefer zero-touch?** Use the [snapMULTI unified installer](https://github.com/lollonet/snapMULTI) — choose "Audio Player" option. No SSH or terminal needed.
 
 ## Prerequisites
 
 - Raspberry Pi 4 (2GB+)
 - One of the supported audio HATs (HiFiBerry, IQaudio, Allo, JustBoom) or USB audio device
-- USB drive (8GB+)
-- Display (any resolution from 800x480 to 4K)
+- SD card (8GB+)
+- Display (any resolution from 800x480 to 4K) — optional for headless
 - Computer with Raspberry Pi Imager
-- Snapserver running on your network
+- **[snapMULTI](https://github.com/lollonet/snapMULTI) server** running on your network
 
 ## Supported Audio HATs
 

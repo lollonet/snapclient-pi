@@ -1,8 +1,10 @@
+**Status: Reflects implementation as of v0.2.19**
+
 # Data Models
 
 ## Metadata Message (WebSocket)
 
-The metadata service pushes JSON messages to subscribed clients via WebSocket (port 8082).
+The centralized metadata service pushes JSON messages to subscribed clients via WebSocket (port 8082).
 
 ### Subscription Request
 
@@ -45,8 +47,8 @@ The metadata service pushes JSON messages to subscribed clients via WebSocket (p
 | `sample_rate` | int | Sample rate in Hz | `44100`, `96000` |
 | `bit_depth` | int | Bit depth | `16`, `24` |
 | `artwork` | string | Relative URL for cover art | `"/artwork/abc123.jpg"` |
-| `volume` | int | Volume level (0-100) | `80` |
-| `muted` | bool | Whether output is muted | `false` |
+| `volume` | int | Client volume level (0-100) | `80` |
+| `muted` | bool | Whether client output is muted | `false` |
 
 ### Cover Art (HTTP)
 
@@ -63,13 +65,13 @@ Source priority (server-side):
 The metadata service also broadcasts server identity. fb-display uses this to show the server version in the status line.
 
 ```json
-{"type": "server_info", "server_version": "0.3.7"}
+{"type": "server_info", "server_version": "0.3.14"}
 ```
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
 | `type` | string | Message discriminator (always `"server_info"`) | `"server_info"` |
-| `server_version` | string | snapMULTI server version | `"0.3.7"` |
+| `server_version` | string | snapMULTI server version | `"0.3.14"` |
 
 This message does not update track metadata — it triggers a status bar redraw only.
 
