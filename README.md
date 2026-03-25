@@ -64,7 +64,7 @@ Docker-based Snapcast client for Raspberry Pi with HiFiBerry DACs, featuring syn
 - 🔍 **mDNS Autodiscovery**: Snapserver found automatically — no IP configuration needed
 - 🎛️ **Multiple Audio HATs**: Support for 15 Raspberry Pi audio HATs + USB audio
 - 📺 **Flexible Display**: Direct framebuffer rendering, 6 resolution presets (800x480 to 4K)
-- ⚡ **Zero-Touch Install**: Flash SD, power on, auto-detects HAT with visual progress display
+- ⚡ **Zero-Touch Install**: Via [snapMULTI](https://github.com/lollonet/snapMULTI) unified installer — flash SD, power on, auto-detects HAT
 - 🐳 **Docker-based**: Pre-built images for easy deployment
 - 🔄 **Auto-start**: Systemd services for automatic startup
 - 🔒 **Security Hardened**: Input validation, non-root containers, granular capabilities
@@ -319,9 +319,13 @@ All containers run with:
 
 Update to latest version:
 ```bash
+# If read-only mode is enabled:
+sudo ro-mode disable && sudo reboot
+# After reboot:
 cd /opt/snapclient
 sudo docker compose pull
 sudo docker compose up -d
+sudo ro-mode enable && sudo reboot
 ```
 
 ## Resources
@@ -363,9 +367,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Notes
 
-- The setup script installs **Docker CE** (official Docker Community Edition) with Compose v2 plugin, not the Debian `docker.io` package
-- ALSA configuration is automatically generated based on the selected audio HAT
-- The script supports 15 different audio HATs (+ USB audio) with appropriate device tree overlays and card names
-- Metadata is served by the snapMULTI server; fb-display connects to it via WebSocket for track info and HTTP for artwork
-- All configuration is done via `.env` files - no hardcoded IP addresses in the code
-- USB audio devices are supported without requiring device tree overlays
+- Installation is done via the [snapMULTI unified installer](https://github.com/lollonet/snapMULTI) — `setup.sh` is called automatically by `firstboot.sh`
+- Docker CE is installed during first boot (not the Debian `docker.io` package)
+- ALSA configuration is automatically generated based on the detected audio HAT
+- Metadata is served by the snapMULTI server; fb-display connects via WebSocket (port 8082) for track info and HTTP (port 8083) for artwork
+- All configuration is done via `.env` files — no hardcoded IP addresses
+- Read-only filesystem (overlayroot) is enabled by default — use `ro-mode disable` for changes
