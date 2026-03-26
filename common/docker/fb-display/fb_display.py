@@ -43,14 +43,24 @@ TARGET_FPS = 20
 
 
 def _get_lan_ip() -> str:
-    """Get LAN IP via UDP socket (no traffic sent)."""
+    """Get LAN IP. Works on offline LANs (no internet required)."""
+    # Try default gateway first (works without internet)
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(0.1)
             s.connect(("8.8.8.8", 80))
             return s.getsockname()[0]
-    except OSError as e:
-        logger.warning("Could not determine LAN IP: %s", e)
-        return "?.?.?.?"
+    except OSError:
+        pass
+    # Fallback: find first non-loopback interface IP
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = info[4][0]
+            if not ip.startswith("127."):
+                return ip
+    except OSError:
+        pass
+    return "?.?.?.?"
 
 
 LAN_IP = _get_lan_ip()
