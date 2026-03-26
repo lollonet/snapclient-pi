@@ -441,15 +441,32 @@ class TestGetLanIp:
             assert part.isdigit()
             assert 0 <= int(part) <= 255
 
-    def test_fallback_on_socket_error(self, monkeypatch, caplog):
-        import logging
+    def test_fallback_to_hostname_resolution(self, monkeypatch):
         import socket
+
+        def _raise(*a, **kw):
+            raise OSError("no route")
+
+        monkeypatch.setattr(socket, "socket", _raise)
+        monkeypatch.setattr(
+            socket,
+            "getaddrinfo",
+            lambda *a, **kw: [
+                (socket.AF_INET, socket.SOCK_DGRAM, 0, "", ("127.0.0.1", 0)),
+                (socket.AF_INET, socket.SOCK_DGRAM, 0, "", ("192.168.63.104", 0)),
+            ],
+        )
+        assert fb_display._get_lan_ip() == "192.168.63.104"
+
+    def test_fallback_on_total_failure(self, monkeypatch):
+        import socket
+
         def _raise(*a, **kw):
             raise OSError("no network")
+
         monkeypatch.setattr(socket, "socket", _raise)
-        with caplog.at_level(logging.WARNING):
-            assert fb_display._get_lan_ip() == "?.?.?.?"
-        assert "Could not determine LAN IP" in caplog.text
+        monkeypatch.setattr(socket, "getaddrinfo", _raise)
+        assert fb_display._get_lan_ip() == "?.?.?.?"
 
 
 class TestDiscoverSnapservers:
