@@ -1241,6 +1241,36 @@ fi
 tune_cpu_governor
 tune_usb_autosuspend
 
+# Install boot-time tuning service (persists CPU/USB settings across reboots)
+# Without this, overlayroot reverts /etc changes and tuning is lost on reboot.
+BOOT_TUNE="$SCRIPT_DIR/boot-tune.sh"
+if [[ ! -f "$BOOT_TUNE" ]]; then
+    # Client may have boot-tune.sh from server's common/ copy
+    BOOT_TUNE="$INSTALL_DIR/scripts/common/boot-tune.sh"
+fi
+if [[ -f "$BOOT_TUNE" ]]; then
+    cp "$BOOT_TUNE" /usr/local/bin/snapmulti-boot-tune.sh
+    chmod +x /usr/local/bin/snapmulti-boot-tune.sh
+    cat > /etc/systemd/system/snapmulti-boot-tune.service <<'SEOF'
+[Unit]
+Description=snapMULTI boot-time system tuning
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/snapmulti-boot-tune.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+SEOF
+    systemctl daemon-reload
+    systemctl enable snapmulti-boot-tune.service 2>/dev/null
+    echo "✓ Boot tuning service installed"
+    log_progress "Boot tuning service installed"
+fi
+
 # Verify read_only and tmpfs settings
 if grep -q "read_only: true" "$INSTALL_DIR/docker-compose.yml" 2>/dev/null; then
     echo "✓ Read-only containers configured"
@@ -1326,8 +1356,8 @@ if [[ "${ENABLE_READONLY:-false}" == "true" ]]; then
         sleep 1
     done
 
-    # Configure Docker daemon (fuse-overlayfs for overlayroot compatibility)
-    tune_docker_daemon --fuse-overlayfs
+    # Configure Docker daemon (live-restore + fuse-overlayfs for overlayroot)
+    tune_docker_daemon --live-restore --fuse-overlayfs
 
     current_driver=$(docker info --format '{{.Driver}}' 2>/dev/null || echo "none")
     if [[ "$current_driver" != "fuse-overlayfs" ]]; then
