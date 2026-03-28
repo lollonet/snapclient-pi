@@ -704,6 +704,9 @@ log_progress "systemctl enable avahi-daemon"
 systemctl enable avahi-daemon
 systemctl start avahi-daemon
 
+# Harden avahi: pin hostname, restrict to physical interfaces
+tune_avahi_daemon "$(hostname)"
+
 log_progress "timedatectl set-ntp true"
 timedatectl set-ntp true 2>/dev/null || true
 
@@ -1241,35 +1244,10 @@ fi
 tune_cpu_governor
 tune_usb_autosuspend
 
-# Install boot-time tuning service (persists CPU/USB settings across reboots)
-# Without this, overlayroot reverts /etc changes and tuning is lost on reboot.
+# Boot-time tuning service (shared function from system-tune.sh)
 BOOT_TUNE="$SCRIPT_DIR/boot-tune.sh"
-if [[ ! -f "$BOOT_TUNE" ]]; then
-    # Client may have boot-tune.sh from server's common/ copy
-    BOOT_TUNE="$INSTALL_DIR/scripts/common/boot-tune.sh"
-fi
-if [[ -f "$BOOT_TUNE" ]]; then
-    cp "$BOOT_TUNE" /usr/local/bin/snapmulti-boot-tune.sh
-    chmod +x /usr/local/bin/snapmulti-boot-tune.sh
-    cat > /etc/systemd/system/snapmulti-boot-tune.service <<'SEOF'
-[Unit]
-Description=snapMULTI boot-time system tuning
-After=network-online.target docker.service
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/snapmulti-boot-tune.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-SEOF
-    systemctl daemon-reload
-    systemctl enable snapmulti-boot-tune.service 2>/dev/null
-    echo "✓ Boot tuning service installed"
-    log_progress "Boot tuning service installed"
-fi
+[[ ! -f "$BOOT_TUNE" ]] && BOOT_TUNE="$INSTALL_DIR/scripts/common/boot-tune.sh"
+install_boot_tune_service "$BOOT_TUNE"
 
 # Verify read_only and tmpfs settings
 if grep -q "read_only: true" "$INSTALL_DIR/docker-compose.yml" 2>/dev/null; then
