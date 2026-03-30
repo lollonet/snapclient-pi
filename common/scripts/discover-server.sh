@@ -30,11 +30,15 @@ if $WATCH_MODE && command -v avahi-browse &>/dev/null; then
     last=$(cat "$LAST_IP_FILE" 2>/dev/null) || true
 
     if [[ -n "$host" ]] && [[ "$host" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "$host" > "$LAST_IP_FILE"
         if [[ -n "$last" && "$host" != "$last" ]]; then
             echo "snapclient-discover: server moved $last -> $host, restarting client"
-            cd /opt/snapclient && docker compose restart snapclient 2>/dev/null \
-                || echo "snapclient-discover: restart failed, will retry next cycle"
+            if cd /opt/snapclient && docker compose restart snapclient 2>/dev/null; then
+                echo "$host" > "$LAST_IP_FILE"
+            else
+                echo "snapclient-discover: restart failed, will retry next cycle"
+            fi
+        else
+            echo "$host" > "$LAST_IP_FILE"
         fi
     fi
 fi
