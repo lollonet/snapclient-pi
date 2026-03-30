@@ -1289,6 +1289,32 @@ EOF
 systemctl daemon-reload
 systemctl enable snapclient.service
 
+# Periodic server re-discovery (follows server across IP changes)
+cat > /etc/systemd/system/snapclient-discover.service <<EOF
+[Unit]
+Description=Snapserver mDNS re-discovery
+After=avahi-daemon.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/snapclient-discover --watch
+EOF
+
+cat > /etc/systemd/system/snapclient-discover.timer <<EOF
+[Unit]
+Description=Re-discover snapserver every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable snapclient-discover.timer
+
 # Install display detection boot service (re-checks HDMI on every boot)
 # Skip copy when source == destination (firstboot installs from /opt/snapclient)
 if [[ "$(cd "$COMMON_DIR" 2>/dev/null && pwd)" != "$(cd "$INSTALL_DIR" 2>/dev/null && pwd)" ]]; then
