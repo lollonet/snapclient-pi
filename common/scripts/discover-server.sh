@@ -18,8 +18,11 @@ if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^snapserver$'; then
     if [[ "$current" != "127.0.0.1" ]]; then
         sed -i "s|^SNAPSERVER_HOST=.*|SNAPSERVER_HOST=127.0.0.1|" "$ENV_FILE" 2>/dev/null \
             || echo "SNAPSERVER_HOST=127.0.0.1" >> "$ENV_FILE"
+        echo "snapclient-discover: local snapserver detected, switching to 127.0.0.1"
+        $WATCH_MODE && cd /opt/snapclient && docker compose restart snapclient 2>/dev/null || true
+    else
+        echo "snapclient-discover: local snapserver, using 127.0.0.1"
     fi
-    echo "snapclient-discover: local snapserver, using 127.0.0.1"
     exit 0
 fi
 
@@ -40,5 +43,10 @@ if $WATCH_MODE && command -v avahi-browse &>/dev/null; then
         else
             echo "$host" > "$LAST_IP_FILE"
         fi
+    else
+        echo "snapclient-discover: no snapserver found via mDNS"
     fi
+    exit 0
 fi
+
+echo "snapclient-discover: boot mode, snapclient will use mDNS autodiscovery"
