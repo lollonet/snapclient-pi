@@ -81,6 +81,7 @@ for _tune_candidate in \
     "$SCRIPT_DIR/common/system-tune.sh" \
     "$SCRIPT_DIR/../scripts/common/system-tune.sh" \
     "$(dirname "$0")/common/system-tune.sh"; do
+    # shellcheck source=common/system-tune.sh
     [[ -f "$_tune_candidate" ]] && source "$_tune_candidate" && break
 done
 
