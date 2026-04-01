@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.24] — 2026-03-31
+
 ### Changed
 - **Repo renamed** to `snapclient-pi` (was `rpi-snapclient-usb`). GitHub redirects old URLs.
 - **Docker images** renamed: `lollonet/snapclient-pi[-*]:latest`
+
+### Fixed
+- **Broken relative links** ([#115](https://github.com/lollonet/snapclient-pi/pull/115)) — rename sed corrupted paths in QUICKSTART.md and README.md
 
 ## [0.2.23] — 2026-03-31
 
