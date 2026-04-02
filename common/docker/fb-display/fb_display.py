@@ -118,6 +118,7 @@ BG_BOTTOM = (22, 33, 62)
 TEXT_COLOR = (255, 255, 255)
 ARTIST_COLOR = (179, 179, 179)
 ALBUM_COLOR = (153, 153, 153)
+DETAIL_COLOR = (120, 120, 120)
 DIM_COLOR = (85, 85, 85)
 PANEL_BG = (17, 17, 17)
 
@@ -749,6 +750,19 @@ def render_base_frame() -> Image.Image:
         source_name = meta.get("source", "")
         source_size = max(14, HEIGHT // 27)
 
+        # Album detail line: "1978 · Reggae · Track 1 · Disc 2"
+        detail_parts: list[str] = []
+        if meta.get("date"):
+            detail_parts.append(meta["date"][:4])  # year only
+        if meta.get("genre"):
+            detail_parts.append(meta["genre"])
+        if meta.get("track"):
+            detail_parts.append(f"Track {meta['track']}")
+        if meta.get("disc"):
+            detail_parts.append(f"Disc {meta['disc']}")
+        detail_text = " · ".join(detail_parts)
+        detail_size = max(10, HEIGHT // 36)
+
         # Audio format badge
         fmt_text = _format_audio_badge(meta) if meta else ""
         badge_size = max(10, HEIGHT // 36)
@@ -763,6 +777,8 @@ def render_base_frame() -> Image.Image:
             total_h += ft_artist.size + line_gap
         if ft_album:
             total_h += ft_album.size + line_gap // 2
+        if detail_text:
+            total_h += detail_size + line_gap // 2
         if fmt_text:
             total_h += badge_size + line_gap
 
@@ -795,7 +811,16 @@ def render_base_frame() -> Image.Image:
             tw = bbox[2] - bbox[0]
             draw.text((text_right - tw, text_y), album,
                       fill=ALBUM_COLOR, font=ft_album)
-            text_y += ft_album.size + line_gap
+            text_y += ft_album.size + line_gap // 2
+
+        # Album details (year, genre, track, disc)
+        if detail_text:
+            ft_detail = fit_font(detail_text, max_text_w, detail_size)
+            bbox = draw.textbbox((0, 0), detail_text, font=ft_detail)
+            tw = bbox[2] - bbox[0]
+            draw.text((text_right - tw, text_y), detail_text,
+                      fill=DETAIL_COLOR, font=ft_detail)
+            text_y += detail_size + line_gap // 2
 
         # Audio format badge (e.g. "FLAC 48kHz/16bit" or "MP3 320kbps")
         if fmt_text:
