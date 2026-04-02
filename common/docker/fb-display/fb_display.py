@@ -820,7 +820,7 @@ def render_base_frame() -> Image.Image:
             tw = bbox[2] - bbox[0]
             draw.text((text_right - tw, text_y), detail_text,
                       fill=DETAIL_COLOR, font=ft_detail)
-            text_y += detail_size + line_gap
+            text_y += detail_size + line_gap // 2
 
         # Audio format badge (e.g. "FLAC 48kHz/16bit" or "MP3 320kbps")
         if fmt_text:
