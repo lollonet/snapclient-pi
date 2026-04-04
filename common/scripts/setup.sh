@@ -440,10 +440,15 @@ detect_hat() {
             # GPIO3. AMP2 boards without EEPROM also work in std mode (no oscillator).
             # HiFiBerry boards ship with EEPROM so this path is rarely reached.
             *sndrpihifiberry*)  echo "hifiberry-dac-std"  ; return ;;
-            *IQaudIODAC*)       echo "iqaudio-dac"    ; return ;;
-            *IQaudIOCODEC*)     echo "iqaudio-codec"  ; return ;;
-            *BossDAC*)          echo "allo-boss"      ; return ;;
-            *sndallodigione*)   echo "allo-digione"   ; return ;;
+            # IQaudio DAC+ and DigiAMP+ both surface IQaudIODAC in ALSA. Preserve
+            # exact identity via EEPROM when present; ALSA fallback resolves to the
+            # compatible DAC profile only.
+            *IQaudIODAC*)       echo "iqaudio-dac"        ; return ;;
+            *IQaudIOCODEC*)     echo "iqaudio-codec"      ; return ;;
+            *BossDAC*)          echo "allo-boss"          ; return ;;
+            *sndallodigione*)   echo "allo-digione"       ; return ;;
+            # JustBoom DAC and Digi share sndrpijustboomd in ALSA. Exact board
+            # identity requires EEPROM; ALSA fallback resolves to the DAC profile.
             *sndrpijustboom*)   echo "justboom-dac"       ; return ;;
             *Katana*)           echo "innomaker-dac-pro"  ; return ;;
             *wm8960soundcard*)  echo "waveshare-wm8960"   ; return ;;
@@ -459,23 +464,38 @@ detect_hat() {
     #              NOTE: shared with TMP112, ADS1x1x, PCA9685 and other non-DAC chips.
     #              Safe on a bare Pi + DAC HAT; may false-positive on mixed I2C buses.
     #   0x1A       WM8960  (Waveshare WM8960)
-    #   0x3A       WM8804  (HiFiBerry Digi, JustBoom Digi, Allo DigiOne — no EEPROM variants)
-    if ! command -v i2cdetect &>/dev/null; then
+    #   0x3B       WM8804  (HiFiBerry Digi, JustBoom Digi, Allo DigiOne — no EEPROM variants)
+    local i2cdetect_bin="" modprobe_bin=""
+    i2cdetect_bin=$(command -v i2cdetect 2>/dev/null || true)
+    [[ -z "$i2cdetect_bin" && -x /usr/sbin/i2cdetect ]] && i2cdetect_bin=/usr/sbin/i2cdetect
+    modprobe_bin=$(command -v modprobe 2>/dev/null || true)
+    [[ -z "$modprobe_bin" && -x /usr/sbin/modprobe ]] && modprobe_bin=/usr/sbin/modprobe
+
+    if [[ -z "$i2cdetect_bin" ]]; then
         # Redirect stdout to stderr: detect_hat() is called in $() substitution so
         # any stdout gets captured as the return value and corrupts HAT_CONFIG.
         apt-get install -y -q i2c-tools >&2 || true
+        i2cdetect_bin=$(command -v i2cdetect 2>/dev/null || true)
+        [[ -z "$i2cdetect_bin" && -x /usr/sbin/i2cdetect ]] && i2cdetect_bin=/usr/sbin/i2cdetect
+    fi
+    if [[ -z "$modprobe_bin" ]]; then
+        apt-get install -y -q kmod >&2 || true
+        modprobe_bin=$(command -v modprobe 2>/dev/null || true)
+        [[ -z "$modprobe_bin" && -x /usr/sbin/modprobe ]] && modprobe_bin=/usr/sbin/modprobe
     fi
     # Enable i2c_arm at runtime in case dtparam=i2c_arm=on is not yet in config.txt
     # (e.g. on first boot before setup.sh has written the overlay). dtparam applies
     # the param immediately without reboot; modprobe i2c-dev exposes /dev/i2c-*.
     dtparam i2c_arm=on &>/dev/null || true
-    modprobe i2c-dev &>/dev/null || true
-    if command -v i2cdetect &>/dev/null; then
-        local bus addr result=""
-        for bus in 1 0; do
-            [[ -e /dev/i2c-$bus ]] || continue
+    [[ -n "$modprobe_bin" ]] && "$modprobe_bin" i2c-dev &>/dev/null || true
+    if [[ -n "$i2cdetect_bin" ]]; then
+        local bus addr result="" found_bus=false
+        for bus_path in /dev/i2c-*; do
+            [[ -e "$bus_path" ]] || continue
+            found_bus=true
+            bus="${bus_path##*/i2c-}"
             local scan
-            scan=$(i2cdetect -y "$bus" 2>/dev/null) || continue
+            scan=$("$i2cdetect_bin" -y "$bus" 2>/dev/null) || continue
             echo "I2C bus $bus scan complete" >&2
             # PCM5122 at 0x4C/0x4D/0x4E/0x4F → PCM5122-based DAC (hifiberry-dac config)
             for addr in 4c 4d 4e 4f; do
@@ -489,13 +509,18 @@ detect_hat() {
                 echo "I2C: WM8960 at 0x1a on bus ${bus} → waveshare-wm8960" >&2
                 result="waveshare-wm8960"; break
             fi
-            # WM8804 at 0x3A → digital HAT (DigiOne, Digi without EEPROM)
-            if echo "$scan" | grep -qE "(^[[:space:]]*30:[[:space:]]|[[:space:]])3a([[:space:]]|$)"; then
-                echo "I2C: WM8804 at 0x3a on bus ${bus} → hifiberry-digi" >&2
+            # WM8804 at 0x3B → generic digital HAT profile.
+            # I2C alone cannot distinguish Digi-class boards that share WM8804.
+            if echo "$scan" | grep -qE "(^[[:space:]]*30:[[:space:]]|[[:space:]])3b([[:space:]]|$)"; then
+                echo "I2C: WM8804 at 0x3b on bus ${bus} → hifiberry-digi" >&2
                 result="hifiberry-digi"; break
             fi
         done
+        $found_bus || echo "I2C: no /dev/i2c-* nodes available after runtime enable" >&2
         [[ -n "$result" ]] && echo "$result" && return
+        echo "I2C: scan completed without matching a supported HAT" >&2
+    else
+        echo "I2C: i2cdetect unavailable after install attempt, skipping I2C detection" >&2
     fi
 
     echo "usb-audio"
@@ -887,23 +912,15 @@ if [ -n "$BOOT_CONFIG" ]; then
         if [ -n "$HAT_OVERLAY" ]; then
             echo "dtoverlay=$HAT_OVERLAY"
 
-            # Enable I2C for HATs that use it for DAC configuration
-            # PCM512x (HiFiBerry, InnoMaker, IQaudio, Allo), WM8960, WM8804 all need I2C
+            # Enable I2C once for HATs that require control-plane access after boot.
+            # This covers PCM512x, WM8960, WM8804, and related amplifier boards.
             case "$HAT_OVERLAY" in
-                hifiberry-*|allo-boss|iqaudio-*|innomaker-*|allo-katana*|waveshare-wm8960)
+                hifiberry-*|iqaudio-*|rpi-digiampplus|allo-boss*|allo-digione|\
+                justboom-dac|justboom-digi|allo-katana*|wm8960*)
                     echo "dtparam=i2c_arm=on"
                     ;;
             esac
         fi
-
-        # Enable I2C for HAT communication (PCM512x, WM8960, ES9038 chips need it).
-        # hifiberry-dacplus* covers dacplus, dacplus-std, dacplushd, dacplusadc*.
-        case "${HAT_OVERLAY:-}" in
-            hifiberry-dacplus*|iqaudio-dacplus|allo-boss*|\
-            justboom-dac|allo-katana*|wm8960*)
-                echo "dtparam=i2c_arm=on"
-                ;;
-        esac
 
         # Disable onboard audio
         echo "dtparam=audio=off"

@@ -9,7 +9,9 @@ import numpy as np
 import pytest
 
 # Add fb-display to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "common", "docker", "fb-display"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "common", "docker", "fb-display")
+)
 
 # Stub out hardware-dependent imports before importing fb_display
 # PIL is available but websockets/requests may not have all runtime deps
@@ -230,6 +232,26 @@ class TestBadgeColor:
         assert fb_display._format_badge_color(meta) == fb_display._BADGE_COLOR_HD
 
 
+class TestDisplayReleaseYear:
+    """Test release-year precedence for album detail line."""
+
+    def test_prefers_original_date(self):
+        meta = {"original_date": "1979-11-30", "date": "2011-09-26"}
+        assert fb_display._display_release_year(meta) == "1979"
+
+    def test_prefers_original_release_date_alias(self):
+        meta = {"original_release_date": "1973-03-01", "date": "2011-09-26"}
+        assert fb_display._display_release_year(meta) == "1973"
+
+    def test_falls_back_to_date(self):
+        meta = {"date": "2011-09-26"}
+        assert fb_display._display_release_year(meta) == "2011"
+
+    def test_ignores_invalid_values(self):
+        meta = {"original_date": "remaster", "date": "unknown"}
+        assert fb_display._display_release_year(meta) == ""
+
+
 class TestRgbToFbNative:
     """Test RGB to framebuffer format conversion."""
 
@@ -247,8 +269,8 @@ class TestRgbToFbNative:
         rgb = np.zeros((1, 1, 3), dtype=np.uint8)
         rgb[0, 0] = [255, 0, 0]  # Pure red
         result = fb_display._rgb_to_fb_native(rgb)
-        assert result[0, 0, 0] == 0    # B
-        assert result[0, 0, 1] == 0    # G
+        assert result[0, 0, 0] == 0  # B
+        assert result[0, 0, 1] == 0  # G
         assert result[0, 0, 2] == 255  # R
         assert result[0, 0, 3] == 255  # A
 
@@ -261,8 +283,8 @@ class TestRgbToFbNative:
         result = fb_display._rgb_to_fb_native(rgb)
         assert result[0, 0, 0] == 255  # X (pad)
         assert result[0, 0, 1] == 255  # R
-        assert result[0, 0, 2] == 0    # G
-        assert result[0, 0, 3] == 0    # B
+        assert result[0, 0, 2] == 0  # G
+        assert result[0, 0, 3] == 0  # B
 
     def test_16bpp_rgb565_shape(self):
         fb_display.fb_bpp = 16
@@ -390,10 +412,20 @@ class TestComputeLayout:
         fb_display.NUM_BANDS = 21
         L = fb_display.compute_layout()
         required_keys = [
-            "art_x", "art_y", "art_size",
-            "right_x", "right_w", "spec_y", "spec_h",
-            "bar_w", "bar_gap", "pad",
-            "start_x", "container_w", "bottom_y", "status_y",
+            "art_x",
+            "art_y",
+            "art_size",
+            "right_x",
+            "right_w",
+            "spec_y",
+            "spec_h",
+            "bar_w",
+            "bar_gap",
+            "pad",
+            "start_x",
+            "container_w",
+            "bottom_y",
+            "status_y",
         ]
         for key in required_keys:
             assert key in L, f"Missing layout key: {key}"
@@ -476,8 +508,6 @@ class TestDiscoverSnapservers:
         """Mock zeroconf to simulate server discovery."""
         import types
 
-        discovered = []
-
         class FakeServiceInfo:
             def __init__(self, addresses):
                 self.addresses = addresses
@@ -502,9 +532,7 @@ class TestDiscoverSnapservers:
         fake_zeroconf_mod.ServiceBrowser = FakeBrowser
         monkeypatch.setitem(sys.modules, "zeroconf", fake_zeroconf_mod)
 
-        servers = asyncio.run(
-            fb_display.discover_snapservers(timeout=0.1)
-        )
+        servers = asyncio.run(fb_display.discover_snapservers(timeout=0.1))
         assert "192.168.63.104" in servers
 
     def test_empty_discovery(self, monkeypatch):
@@ -528,9 +556,8 @@ class TestDiscoverSnapservers:
         monkeypatch.setitem(sys.modules, "zeroconf", fake_zeroconf_mod)
 
         import asyncio
-        servers = asyncio.run(
-            fb_display.discover_snapservers(timeout=0.1)
-        )
+
+        servers = asyncio.run(fb_display.discover_snapservers(timeout=0.1))
         assert servers == []
 
 

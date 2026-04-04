@@ -21,7 +21,7 @@ import socket
 import sys
 import threading
 import time
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 import numpy as np
 import requests
@@ -152,16 +152,17 @@ def resize_bands(n: int) -> None:
         _init_spectrum_buffer()
     logger.info(f"Band count changed to {n}")
 
+
 # Smoothing coefficients
 ATTACK_COEFF = 0.7  # fast attack (higher = faster)
 DECAY_COEFF = 0.15  # decay speed (higher = faster)
-PEAK_HOLD_S = 1.5   # seconds before peak marker vanishes
+PEAK_HOLD_S = 1.5  # seconds before peak marker vanishes
 
 # Fixed display range for spectrum visualization
 # Visualizer outputs absolute dBFS; with hardware mixer, levels are volume-independent.
 # 72 dB window covers 16-bit dynamic range from noise floor to 0 dBFS.
 DISPLAY_FLOOR = -72.0  # dBFS below which bars show nothing (16-bit noise floor)
-DISPLAY_RANGE = 72.0   # maps DISPLAY_FLOOR..0 dBFS to 0..1
+DISPLAY_RANGE = 72.0  # maps DISPLAY_FLOOR..0 dBFS to 0..1
 
 # Idle animation state
 idle_animation_phase: float = 0.0
@@ -188,17 +189,17 @@ cached_artwork: Image.Image | None = None
 cached_artwork_url: str = ""
 
 # Playback time tracking (local clock for smooth updates)
-_playback_start: float = 0.0      # monotonic time when playback started
-_playback_offset: float = 0.0     # initial elapsed position from MPD (seconds)
+_playback_start: float = 0.0  # monotonic time when playback started
+_playback_offset: float = 0.0  # initial elapsed position from MPD (seconds)
 _is_playing: bool = False
-_last_duration: int = 0           # to detect track changes
+_last_duration: int = 0  # to detect track changes
 
 # Framebuffer
 fb_fd = None
 fb_mmap = None
 fb_stride = 0
 fb_bpp = 32
-fb_big_endian = (sys.byteorder == "big")
+fb_big_endian = sys.byteorder == "big"
 
 # Actual framebuffer dimensions (may differ from render WIDTH/HEIGHT)
 FB_WIDTH, FB_HEIGHT = WIDTH, HEIGHT
@@ -208,13 +209,28 @@ base_frame: Image.Image | None = None
 base_frame_version: int = -1
 spectrum_bg_np: np.ndarray | None = None  # numpy RGB array for alpha blending
 spectrum_bg_fb: np.ndarray | None = None  # native FB format (RGB565 or BGRA32)
-_spectrum_work_buf: np.ndarray | None = None  # pre-allocated render buffer (avoids copy per frame)
+_spectrum_work_buf: np.ndarray | None = (
+    None  # pre-allocated render buffer (avoids copy per frame)
+)
 
 # Cached clock overlay (re-rendered every second)
-_clock_cache: dict = {"time_str": None, "fb": None, "width": 0, "height": 0, "dirty": True}
+_clock_cache: dict = {
+    "time_str": None,
+    "fb": None,
+    "width": 0,
+    "height": 0,
+    "dirty": True,
+}
 
 # Cached progress bar overlay (re-rendered every second)
-_progress_cache: dict = {"elapsed": -1, "duration": 0, "fb": None, "width": 0, "height": 0, "dirty": True}
+_progress_cache: dict = {
+    "elapsed": -1,
+    "duration": 0,
+    "fb": None,
+    "width": 0,
+    "height": 0,
+    "dirty": True,
+}
 
 # Logo and brand text images (loaded once at startup)
 _logo_img: Image.Image | None = None
@@ -240,7 +256,9 @@ def get_fb_info() -> tuple[int, int, int, int]:
             stride = int(f.read().strip())
         return int(vw), int(vh), bpp, stride
     except FileNotFoundError:
-        logger.warning("Framebuffer sysfs not found, using defaults %dx%d", WIDTH, HEIGHT)
+        logger.warning(
+            "Framebuffer sysfs not found, using defaults %dx%d", WIDTH, HEIGHT
+        )
         return WIDTH, HEIGHT, 32, WIDTH * 4
 
 
@@ -275,9 +293,7 @@ def open_framebuffer() -> None:
 
     logger.info(f"Framebuffer: {FB_WIDTH}x{FB_HEIGHT}, {fb_bpp}bpp, stride={fb_stride}")
     if (WIDTH, HEIGHT) != (FB_WIDTH, FB_HEIGHT):
-        logger.info(
-            f"Render resolution: {WIDTH}x{HEIGHT} (scaled to FB on output)"
-        )
+        logger.info(f"Render resolution: {WIDTH}x{HEIGHT} (scaled to FB on output)")
 
     try:
         fd = os.open(FB_DEVICE, os.O_RDWR)
@@ -310,7 +326,9 @@ def write_region_to_fb_fast(fb_pixels: np.ndarray, x: int, y: int) -> None:
 
     h, w = fb_pixels.shape[:2]
     if x < 0 or y < 0 or x + w > FB_WIDTH or y + h > FB_HEIGHT:
-        logger.warning(f"Framebuffer write out of bounds: ({x},{y}) {w}x{h} on {FB_WIDTH}x{FB_HEIGHT}")
+        logger.warning(
+            f"Framebuffer write out of bounds: ({x},{y}) {w}x{h} on {FB_WIDTH}x{FB_HEIGHT}"
+        )
         return
 
     bpp_bytes = fb_bpp // 8
@@ -346,9 +364,7 @@ def write_full_frame(img: Image.Image) -> None:
                 src_y0 = fb_y0 * img.height // FB_HEIGHT
                 src_y1 = max(src_y0 + 1, fb_y1 * img.height // FB_HEIGHT)
                 strip = img.crop((0, src_y0, img.width, src_y1))
-                strip = strip.resize(
-                    (FB_WIDTH, fb_y1 - fb_y0), Image.BILINEAR
-                )
+                strip = strip.resize((FB_WIDTH, fb_y1 - fb_y0), Image.BILINEAR)
             else:
                 strip = img.crop((0, fb_y0, FB_WIDTH, fb_y1))
 
@@ -393,8 +409,6 @@ def _get_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     font = ImageFont.load_default()
     _font_cache[key] = font
     return font
-
-
 
 
 def lerp_color(c1: tuple, c2: tuple, t: float) -> tuple:
@@ -507,19 +521,38 @@ def compute_layout() -> dict:
     status_y = clock_y + max(10, clock_h // 2) + 4
 
     return {
-        "start_x": start_x, "container_w": container_w,
-        "art_x": art_x, "art_y": art_y, "art_size": art_size,
-        "right_x": right_x, "right_w": right_w,
-        "right_y": right_y, "right_h": right_h,
-        "spec_y": spec_y, "spec_h": spec_h,
-        "info_y": info_y, "info_h": info_h,
+        "start_x": start_x,
+        "container_w": container_w,
+        "art_x": art_x,
+        "art_y": art_y,
+        "art_size": art_size,
+        "right_x": right_x,
+        "right_w": right_w,
+        "right_y": right_y,
+        "right_h": right_h,
+        "spec_y": spec_y,
+        "spec_h": spec_h,
+        "info_y": info_y,
+        "info_h": info_h,
         "outer_gap": outer_gap,
-        "pad": pad, "bar_area_w": bar_area_w, "bar_area_h": bar_area_h,
-        "bar_gap": bar_gap, "bar_w": bar_w, "bar_base_y": bar_base_y,
-        "clock_y": clock_y, "clock_h": clock_h, "status_y": status_y,
-        "bottom_y": bottom_y, "bottom_h": bottom_h, "bottom_pad": bottom_pad,
-        "logo_size": logo_size, "logo_x": logo_x, "logo_y": logo_y,
-        "vol_radius": vol_radius, "vol_x": vol_x, "vol_y": vol_y,
+        "pad": pad,
+        "bar_area_w": bar_area_w,
+        "bar_area_h": bar_area_h,
+        "bar_gap": bar_gap,
+        "bar_w": bar_w,
+        "bar_base_y": bar_base_y,
+        "clock_y": clock_y,
+        "clock_h": clock_h,
+        "status_y": status_y,
+        "bottom_y": bottom_y,
+        "bottom_h": bottom_h,
+        "bottom_pad": bottom_pad,
+        "logo_size": logo_size,
+        "logo_x": logo_x,
+        "logo_y": logo_y,
+        "vol_radius": vol_radius,
+        "vol_x": vol_x,
+        "vol_y": vol_y,
     }
 
 
@@ -607,7 +640,9 @@ def _init_spectrum_buffer() -> None:
     spectrum_bg_fb = None  # will be set from base frame
 
 
-def fit_font(text: str, max_width: int, base_size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+def fit_font(
+    text: str, max_width: int, base_size: int, bold: bool = False
+) -> ImageFont.FreeTypeFont:
     """Return the largest font size (down to 10px) that fits text within max_width."""
     for size in range(base_size, 9, -1):
         font = _get_font(size, bold)
@@ -633,8 +668,11 @@ def _format_audio_badge(meta: dict) -> str:
     parts = [codec]
     if lossless and sample_rate:
         if sample_rate >= 1000:
-            parts.append(f"{sample_rate / 1000:.0f}kHz" if sample_rate % 1000 == 0
-                         else f"{sample_rate / 1000:.1f}kHz")
+            parts.append(
+                f"{sample_rate / 1000:.0f}kHz"
+                if sample_rate % 1000 == 0
+                else f"{sample_rate / 1000:.1f}kHz"
+            )
         else:
             parts.append(f"{sample_rate}Hz")
         if bit_depth:
@@ -643,16 +681,19 @@ def _format_audio_badge(meta: dict) -> str:
         parts.append(f"{bitrate}kbps")
     elif sample_rate:
         if sample_rate >= 1000:
-            parts.append(f"{sample_rate / 1000:.0f}kHz" if sample_rate % 1000 == 0
-                         else f"{sample_rate / 1000:.1f}kHz")
+            parts.append(
+                f"{sample_rate / 1000:.0f}kHz"
+                if sample_rate % 1000 == 0
+                else f"{sample_rate / 1000:.1f}kHz"
+            )
 
     return " ".join(parts)
 
 
 # Badge colors by quality tier
-_BADGE_COLOR_LOSSLESS = (100, 200, 120)   # green — lossless
-_BADGE_COLOR_HD = (120, 160, 255)          # blue — hi-res
-_BADGE_COLOR_LOSSY = (170, 140, 100)       # amber — lossy
+_BADGE_COLOR_LOSSLESS = (100, 200, 120)  # green — lossless
+_BADGE_COLOR_HD = (120, 160, 255)  # blue — hi-res
+_BADGE_COLOR_LOSSY = (170, 140, 100)  # amber — lossy
 
 
 def _format_badge_color(meta: dict) -> tuple[int, int, int]:
@@ -666,6 +707,25 @@ def _format_badge_color(meta: dict) -> tuple[int, int, int]:
     if lossless:
         return _BADGE_COLOR_LOSSLESS
     return _BADGE_COLOR_LOSSY
+
+
+def _display_release_year(meta: dict) -> str:
+    """Return the preferred release year for display.
+
+    Prefer the first/original release date when the metadata service provides it;
+    otherwise fall back to the edition-specific `date` field.
+    """
+    for key in (
+        "original_date",
+        "original_release_date",
+        "first_release_date",
+        "release_group_first_date",
+        "date",
+    ):
+        value = str(meta.get(key, "") or "").strip()
+        if len(value) >= 4 and value[:4].isdigit():
+            return value[:4]
+    return ""
 
 
 def fetch_artwork(url: str) -> Image.Image | None:
@@ -705,9 +765,14 @@ def render_base_frame() -> Image.Image:
 
     # Left panel: album art
     draw.rounded_rectangle(
-        [L["art_x"], L["art_y"],
-         L["art_x"] + L["art_size"], L["art_y"] + L["art_size"]],
-        radius=8, fill=PANEL_BG,
+        [
+            L["art_x"],
+            L["art_y"],
+            L["art_x"] + L["art_size"],
+            L["art_y"] + L["art_size"],
+        ],
+        radius=8,
+        fill=PANEL_BG,
     )
 
     meta = current_metadata
@@ -718,9 +783,7 @@ def render_base_frame() -> Image.Image:
         if artwork_url:
             art_img = fetch_artwork(artwork_url)
             if art_img:
-                resized = art_img.resize(
-                    (L["art_size"], L["art_size"]), Image.LANCZOS
-                )
+                resized = art_img.resize((L["art_size"], L["art_size"]), Image.LANCZOS)
                 bg.paste(resized, (L["art_x"], L["art_y"]))
     else:
         # Standby mode: show standby artwork
@@ -742,7 +805,9 @@ def render_base_frame() -> Image.Image:
         artist = meta.get("artist", "")
         album = meta.get("album", "")
 
-        ft_title = fit_font(title, max_text_w, base_title_size, bold=True) if title else None
+        ft_title = (
+            fit_font(title, max_text_w, base_title_size, bold=True) if title else None
+        )
         ft_artist = fit_font(artist, max_text_w, base_detail_size) if artist else None
         ft_album = fit_font(album, max_text_w, base_detail_size) if album else None
 
@@ -752,8 +817,9 @@ def render_base_frame() -> Image.Image:
 
         # Album detail line: "1978 · Reggae · Track 1 · Disc 2"
         detail_parts: list[str] = []
-        if meta.get("date"):
-            detail_parts.append(meta["date"][:4])  # year only
+        release_year = _display_release_year(meta)
+        if release_year:
+            detail_parts.append(release_year)
         if meta.get("genre"):
             detail_parts.append(meta["genre"])
         if meta.get("track"):
@@ -788,29 +854,29 @@ def render_base_frame() -> Image.Image:
             ft_source = fit_font(source_name, max_text_w, source_size)
             bbox = draw.textbbox((0, 0), source_name, font=ft_source)
             tw = bbox[2] - bbox[0]
-            draw.text((text_right - tw, text_y), source_name,
-                      fill=DIM_COLOR, font=ft_source)
+            draw.text(
+                (text_right - tw, text_y), source_name, fill=DIM_COLOR, font=ft_source
+            )
             text_y += source_size + line_gap
 
         if ft_title:
             bbox = draw.textbbox((0, 0), title, font=ft_title)
             tw = bbox[2] - bbox[0]
-            draw.text((text_right - tw, text_y), title,
-                      fill=TEXT_COLOR, font=ft_title)
+            draw.text((text_right - tw, text_y), title, fill=TEXT_COLOR, font=ft_title)
             text_y += ft_title.size + line_gap
 
         if ft_artist:
             bbox = draw.textbbox((0, 0), artist, font=ft_artist)
             tw = bbox[2] - bbox[0]
-            draw.text((text_right - tw, text_y), artist,
-                      fill=ARTIST_COLOR, font=ft_artist)
+            draw.text(
+                (text_right - tw, text_y), artist, fill=ARTIST_COLOR, font=ft_artist
+            )
             text_y += ft_artist.size + line_gap // 2
 
         if ft_album:
             bbox = draw.textbbox((0, 0), album, font=ft_album)
             tw = bbox[2] - bbox[0]
-            draw.text((text_right - tw, text_y), album,
-                      fill=ALBUM_COLOR, font=ft_album)
+            draw.text((text_right - tw, text_y), album, fill=ALBUM_COLOR, font=ft_album)
             text_y += ft_album.size + line_gap // 2
 
         # Album details (year, genre, track, disc)
@@ -818,8 +884,12 @@ def render_base_frame() -> Image.Image:
             ft_detail = fit_font(detail_text, max_text_w, detail_size)
             bbox = draw.textbbox((0, 0), detail_text, font=ft_detail)
             tw = bbox[2] - bbox[0]
-            draw.text((text_right - tw, text_y), detail_text,
-                      fill=DETAIL_COLOR, font=ft_detail)
+            draw.text(
+                (text_right - tw, text_y),
+                detail_text,
+                fill=DETAIL_COLOR,
+                font=ft_detail,
+            )
             text_y += detail_size + line_gap // 2
 
         # Audio format badge (e.g. "FLAC 48kHz/16bit" or "MP3 320kbps")
@@ -827,8 +897,12 @@ def render_base_frame() -> Image.Image:
             ft_badge = _get_font(badge_size)
             bbox = draw.textbbox((0, 0), fmt_text, font=ft_badge)
             tw = bbox[2] - bbox[0]
-            draw.text((text_right - tw, text_y), fmt_text,
-                      fill=_format_badge_color(meta), font=ft_badge)
+            draw.text(
+                (text_right - tw, text_y),
+                fmt_text,
+                fill=_format_badge_color(meta),
+                font=ft_badge,
+            )
     else:
         # Standby mode: show reassuring status
         hostname = os.environ.get("HOSTNAME", os.environ.get("CLIENT_ID", "snapclient"))
@@ -867,16 +941,19 @@ def render_base_frame() -> Image.Image:
 
     # Spectrum panel background (will be overwritten each frame)
     draw.rounded_rectangle(
-        [L["right_x"], L["spec_y"],
-         L["right_x"] + L["right_w"], L["spec_y"] + L["spec_h"]],
-        radius=6, fill=(10, 10, 15),
+        [
+            L["right_x"],
+            L["spec_y"],
+            L["right_x"] + L["right_w"],
+            L["spec_y"] + L["spec_h"],
+        ],
+        radius=6,
+        fill=(10, 10, 15),
     )
 
     # Bottom bar: logo (left) + SnapForge brand image
     if _logo_img is not None:
-        logo_resized = _logo_img.resize(
-            (L["logo_size"], L["logo_size"]), Image.LANCZOS
-        )
+        logo_resized = _logo_img.resize((L["logo_size"], L["logo_size"]), Image.LANCZOS)
         bg.paste(logo_resized, (L["logo_x"], L["logo_y"]), logo_resized)
 
         # Brand text image next to logo
@@ -922,10 +999,14 @@ def extract_spectrum_bg() -> None:
     """Extract the spectrum region from base frame in both RGB and native FB format."""
     global spectrum_bg_np, spectrum_bg_fb
     L = layout
-    region = base_frame.crop((
-        L["right_x"], L["spec_y"],
-        L["right_x"] + L["right_w"], L["spec_y"] + L["spec_h"],
-    ))
+    region = base_frame.crop(
+        (
+            L["right_x"],
+            L["spec_y"],
+            L["right_x"] + L["right_w"],
+            L["spec_y"] + L["spec_h"],
+        )
+    )
     spectrum_bg_np = np.array(region.convert("RGB"), dtype=np.uint8)
     spectrum_bg_fb = _rgb_to_fb_native(spectrum_bg_np)
 
@@ -943,7 +1024,8 @@ def _render_volume_knob(vol: int, muted: bool) -> Image.Image:
     # Background ring (dark)
     draw.ellipse(
         [cx - radius, cy - radius, cx + radius, cy + radius],
-        outline=(50, 50, 50), width=ring_w,
+        outline=(50, 50, 50),
+        width=ring_w,
     )
 
     # Filled arc proportional to volume
@@ -951,8 +1033,10 @@ def _render_volume_knob(vol: int, muted: bool) -> Image.Image:
         sweep = vol / 100.0 * 360
         draw.arc(
             [cx - radius, cy - radius, cx + radius, cy + radius],
-            start=135, end=135 + sweep,
-            fill=ARTIST_COLOR, width=ring_w,
+            start=135,
+            end=135 + sweep,
+            fill=ARTIST_COLOR,
+            width=ring_w,
         )
 
     # Volume text centered inside (smaller font)
@@ -1028,9 +1112,11 @@ def render_progress_overlay() -> tuple[np.ndarray, int, int, int, int] | None:
     elapsed = min(get_current_elapsed(), duration)
 
     # Check cache (updates every second)
-    if (elapsed == _progress_cache["elapsed"] and
-            duration == _progress_cache["duration"] and
-            _progress_cache["fb"] is not None):
+    if (
+        elapsed == _progress_cache["elapsed"]
+        and duration == _progress_cache["duration"]
+        and _progress_cache["fb"] is not None
+    ):
         _progress_cache["dirty"] = False
         return (
             _progress_cache["fb"],
@@ -1091,13 +1177,16 @@ def render_progress_overlay() -> tuple[np.ndarray, int, int, int, int] | None:
     draw.text((pad, pad), elapsed_text, fill=text_dim, font=time_font)
 
     # Draw duration (right)
-    draw.text((img_w - duration_w - pad, pad), duration_text, fill=text_dim, font=time_font)
+    draw.text(
+        (img_w - duration_w - pad, pad), duration_text, fill=text_dim, font=time_font
+    )
 
     # Draw bar background (rounded corners proportional to height)
     bar_radius = max(3, bar_height // 2)
     draw.rounded_rectangle(
         [bar_x, bar_y, bar_x + bar_width, bar_y + bar_height],
-        radius=bar_radius, fill=bar_bg
+        radius=bar_radius,
+        fill=bar_bg,
     )
 
     # Draw progress fill
@@ -1105,7 +1194,8 @@ def render_progress_overlay() -> tuple[np.ndarray, int, int, int, int] | None:
     if fill_width > bar_radius * 2:
         draw.rounded_rectangle(
             [bar_x, bar_y, bar_x + fill_width, bar_y + bar_height],
-            radius=bar_radius, fill=bar_fg
+            radius=bar_radius,
+            fill=bar_fg,
         )
 
     # Convert to native FB format
@@ -1117,16 +1207,18 @@ def render_progress_overlay() -> tuple[np.ndarray, int, int, int, int] | None:
     overlay_y = L["bottom_y"] - img_h - 20
 
     # Update cache
-    _progress_cache.update({
-        "elapsed": elapsed,
-        "duration": duration,
-        "fb": fb_pixels,
-        "width": img_w,
-        "height": img_h,
-        "x": overlay_x,
-        "y": overlay_y,
-        "dirty": True,
-    })
+    _progress_cache.update(
+        {
+            "elapsed": elapsed,
+            "duration": duration,
+            "fb": fb_pixels,
+            "width": img_w,
+            "height": img_h,
+            "x": overlay_x,
+            "y": overlay_y,
+            "dirty": True,
+        }
+    )
 
     return fb_pixels, img_w, img_h, overlay_x, overlay_y
 
@@ -1193,17 +1285,17 @@ def _render_spectrum_locked() -> np.ndarray:
             bar_h = max(2, int(fraction * bar_area_h))
             by = max(0, bar_base_y - bar_h)
             if fb_bpp == 16:
-                buf[by:bar_base_y, bx:bx + bar_w] = BAR_COLORS_FB[i]
+                buf[by:bar_base_y, bx : bx + bar_w] = BAR_COLORS_FB[i]
             else:
-                buf[by:bar_base_y, bx:bx + bar_w, :] = BAR_COLORS_FB[i]
+                buf[by:bar_base_y, bx : bx + bar_w, :] = BAR_COLORS_FB[i]
 
         if peak_bands[i] > 0.01:
             peak_h = int(peak_bands[i] * bar_area_h)
             peak_y = max(0, bar_base_y - peak_h)
             if fb_bpp == 16:
-                buf[peak_y:peak_y + marker_h, bx:bx + bar_w] = PEAK_COLORS_FB[i]
+                buf[peak_y : peak_y + marker_h, bx : bx + bar_w] = PEAK_COLORS_FB[i]
             else:
-                buf[peak_y:peak_y + marker_h, bx:bx + bar_w, :] = PEAK_COLORS_FB[i]
+                buf[peak_y : peak_y + marker_h, bx : bx + bar_w, :] = PEAK_COLORS_FB[i]
 
     return buf
 
@@ -1313,8 +1405,9 @@ async def _handle_metadata_message(message: str) -> None:
 
         # Ignore volatile fields for change detection (must match metadata-service)
         _VOLATILE = {"bitrate", "artwork", "artist_image", "elapsed", "duration"}
-        old_stable = {k: v for k, v in (current_metadata or {}).items()
-                      if k not in _VOLATILE}
+        old_stable = {
+            k: v for k, v in (current_metadata or {}).items() if k not in _VOLATILE
+        }
         new_stable = {k: v for k, v in data.items() if k not in _VOLATILE}
 
         # Artwork changes need a base frame redraw even though they're volatile
@@ -1444,10 +1537,7 @@ async def render_loop() -> None:
                 continue
 
             # Determine adaptive FPS
-            is_playing = (
-                current_metadata
-                and current_metadata.get("playing")
-            )
+            is_playing = current_metadata and current_metadata.get("playing")
             spectrum_active = is_spectrum_active()
 
             if is_playing and spectrum_active:
@@ -1465,7 +1555,9 @@ async def render_loop() -> None:
             # Batch all rendering + FB writes into a single executor call
             # to avoid 5+ thread switches per frame
             await asyncio.get_event_loop().run_in_executor(
-                None, _render_and_write_frame, is_playing,
+                None,
+                _render_and_write_frame,
+                is_playing,
             )
 
             elapsed = time.monotonic() - start
