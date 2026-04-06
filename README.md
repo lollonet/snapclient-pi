@@ -144,7 +144,7 @@ Use the snapMULTI unified installer — it handles both server and client:
 4. Choose **"Audio Player"** (client only) or **"Server + Player"** (both)
 5. Eject SD card, insert in Pi, power on — installation takes ~5-10 minutes
 
-> **HAT auto-detection**: Uses a 3-step detection chain — EEPROM (`/proc/device-tree/hat/product`) → ALSA card name → I2C bus scan. The I2C scan detects HATs that ship without an EEPROM (InnoMaker, Waveshare, some Allo boards) by probing known chip addresses directly. Falls back to USB audio if nothing is found.
+> **HAT auto-detection**: Uses a 3-step detection chain — EEPROM (`/proc/device-tree/hat/product`) → ALSA card name → I2C bus scan. The I2C scan detects chip families used by EEPROM-less boards (PCM5122, WM8960, WM8804), then maps them to compatible profiles. That fallback is reliable for generic bring-up, but it cannot always preserve exact board identity for every no-EEPROM variant. Falls back to USB audio if nothing is found.
 
 > **Custom settings**: Edit `snapmulti/client/snapclient.conf` on the boot partition before step 5 to override defaults (resolution, display mode, band mode, snapserver host).
 

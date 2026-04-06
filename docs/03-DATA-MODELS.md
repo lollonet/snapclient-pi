@@ -20,6 +20,8 @@ The centralized metadata service pushes JSON messages to subscribed clients via 
   "title": "Bohemian Rhapsody",
   "artist": "Queen",
   "album": "A Night at the Opera",
+  "date": "2011-01-01",
+  "original_date": "1975-11-21",
   "duration": 354.0,
   "elapsed": 42.5,
   "playing": true,
@@ -40,6 +42,8 @@ The centralized metadata service pushes JSON messages to subscribed clients via 
 | `title` | string | Track title | `"Bohemian Rhapsody"` |
 | `artist` | string | Artist name | `"Queen"` |
 | `album` | string | Album name | `"A Night at the Opera"` |
+| `date` | string | Release date for the current edition when known | `"2011-01-01"` |
+| `original_date` | string | First/original release date when known; clients should prefer this over `date` for display | `"1975-11-21"` |
 | `duration` | float | Track duration in seconds (0 for streams) | `354.0` |
 | `elapsed` | float | Current playback position in seconds | `42.5` |
 | `playing` | bool | Whether audio is currently playing | `true`, `false` |
@@ -119,9 +123,9 @@ The `compute_layout()` function returns a dictionary describing the render layou
 Each `.conf` file in `common/audio-hats/` defines:
 
 ```bash
-HAT_OVERLAY="hifiberry-dacplus"    # Device tree overlay name
-HAT_CARD="sndrpihifiberry"         # ALSA card name
-HAT_RATE="48000"                   # DAC native max rate (informational)
+HAT_OVERLAY="hifiberry-dacplus-std"  # Device tree overlay name
+HAT_CARD_NAME="sndrpihifiberry"      # ALSA card name
+HAT_RATE="48000"                     # DAC native max rate (informational)
 ```
 
 ## Environment Variables
