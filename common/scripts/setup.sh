@@ -110,6 +110,7 @@ if [[ -n "$PROGRESS_MANAGED" ]]; then
     PROGRESS_LOG="${PROGRESS_LOG:-/tmp/snapmulti-progress.log}"
 else
     PROGRESS_LOG="/tmp/snapclient-progress.log"
+    : > "$PROGRESS_LOG"
 fi
 
 if [[ "$AUTO_MODE" == true ]]; then
@@ -138,6 +139,7 @@ if [[ "$AUTO_MODE" == true ]]; then
         # shellcheck source=common/progress.sh
         if [[ -f "$_progress_candidate" ]]; then
             source "$_progress_candidate"
+            progress_init 2>/dev/null || true
             _progress_sourced=true
             break
         fi
@@ -145,6 +147,7 @@ if [[ "$AUTO_MODE" == true ]]; then
     if [[ "$_progress_sourced" != true ]]; then
         echo "WARNING: progress.sh not found — TUI disabled"
     fi
+    unset _progress_sourced _progress_candidate
 fi
 
 # Define no-op stubs for any functions not yet defined (interactive mode,
