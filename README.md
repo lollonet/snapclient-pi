@@ -121,7 +121,7 @@ For advanced users who prefer interactive control, see **[QUICKSTART.md](QUICKST
 
 ### Summary
 
-1. Flash Raspberry Pi OS Lite (64-bit) to USB drive
+1. Flash Raspberry Pi OS Lite (64-bit) to microSD card
 2. Enable SSH and WiFi in Raspberry Pi Imager settings
 3. Boot Pi with your audio HAT attached
 4. Copy project files and run `sudo bash common/scripts/setup.sh`
