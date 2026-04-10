@@ -1148,7 +1148,7 @@ echo ""
 # ============================================
 echo "Framebuffer mode: display rendering handled by fb-display Docker container"
 
-if systemctl is-enabled x11-autostart.service 2>/dev/null; then
+if systemctl is-enabled x11-autostart.service &>/dev/null; then
     systemctl disable x11-autostart.service
     echo "  Disabled previous X11 autostart service"
 fi
