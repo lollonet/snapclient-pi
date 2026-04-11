@@ -242,16 +242,21 @@ get_hat_config() {
     esac
 }
 
+# Tracks how the HAT was detected: eeprom, alsa, i2c, usb, internal, none
+HAT_DETECTION_SOURCE="none"
+
 detect_hat() {
     # Detect audio HAT automatically.
     # 1. Pi firmware reads HAT EEPROM at boot → /proc/device-tree/hat/product
     # 2. Fallback: check ALSA card names via aplay -l (requires overlay already loaded)
     # 3. Fallback: I2C bus scan for known DAC chip addresses (works without overlay)
-    # 4. Final fallback: USB audio
+    # 4. USB audio device check
+    # 5. Final fallback: internal audio (bcm2835)
     local hat_product=""
 
     if [ -f /proc/device-tree/hat/product ]; then
         hat_product=$(tr -d '\0' < /proc/device-tree/hat/product)
+        HAT_DETECTION_SOURCE="eeprom"
         # Log detected product for debugging
         echo "EEPROM product: '$hat_product'" >&2
         # Match EEPROM strings - patterns based on Volumio dacs.json and real devices
@@ -282,6 +287,7 @@ detect_hat() {
         echo "Warning: Unknown HAT product '$hat_product', falling back to USB" >&2
     fi
 
+    HAT_DETECTION_SOURCE="alsa"
     if command -v aplay &>/dev/null; then
         local cards
         cards=$(aplay -l 2>/dev/null || true)
@@ -324,8 +330,8 @@ detect_hat() {
     [[ -z "$modprobe_bin" && -x /usr/sbin/modprobe ]] && modprobe_bin=/usr/sbin/modprobe
 
     if [[ -z "$i2cdetect_bin" ]]; then
-        # Redirect stdout to stderr: detect_hat() is called in $() substitution so
-        # any stdout gets captured as the return value and corrupts HAT_CONFIG.
+        # Redirect stdout to stderr: detect_hat() output goes to a temp file,
+        # so any apt-get stdout here would corrupt the detected HAT name.
         apt-get install -y -q i2c-tools >&2 || true
         i2cdetect_bin=$(command -v i2cdetect 2>/dev/null || true)
         [[ -z "$i2cdetect_bin" && -x /usr/sbin/i2cdetect ]] && i2cdetect_bin=/usr/sbin/i2cdetect
@@ -369,29 +375,58 @@ detect_hat() {
             fi
         done
         $found_bus || echo "I2C: no /dev/i2c-* nodes available after runtime enable" >&2
-        [[ -n "$result" ]] && echo "$result" && return
+        if [[ -n "$result" ]]; then
+            HAT_DETECTION_SOURCE="i2c"
+            echo "$result"
+            return
+        fi
         echo "I2C: scan completed without matching a supported HAT" >&2
     else
         echo "I2C: i2cdetect unavailable after install attempt, skipping I2C detection" >&2
     fi
 
-    echo "usb-audio"
+    # Step 4: Check for USB audio device
+    if command -v aplay &>/dev/null && aplay -l 2>/dev/null | grep -qi 'USB'; then
+        echo "Detected USB audio device" >&2
+        HAT_DETECTION_SOURCE="usb"
+        echo "usb-audio"
+        return
+    fi
+
+    # Step 5: Fall back to internal audio (bcm2835 headphone jack / HDMI)
+    if command -v aplay &>/dev/null && aplay -l 2>/dev/null | grep -qi 'bcm2835\|Headphones'; then
+        echo "No HAT or USB DAC found, using internal audio (bcm2835)" >&2
+        HAT_DETECTION_SOURCE="internal"
+        echo "internal-audio"
+        return
+    fi
+
+    # Nothing found — default to internal (safer than USB which may not exist)
+    echo "WARNING: No audio device detected, defaulting to internal audio" >&2
+    HAT_DETECTION_SOURCE="internal"
+    echo "internal-audio"
 }
 
 # Map AUDIO_HAT config name (e.g. "usb") to .conf filename
 resolve_hat_config_name() {
     local name="$1"
     case "$name" in
-        usb|usb-audio)  echo "usb-audio" ;;
-        *)              echo "$name" ;;
+        usb|usb-audio)      echo "usb-audio" ;;
+        internal|internal-audio|bcm2835) echo "internal-audio" ;;
+        *)                  echo "$name" ;;
     esac
 }
 
 if [ "$AUTO_MODE" = true ]; then
     # Auto mode: detect or use configured HAT
     if [ "$AUDIO_HAT" = "auto" ]; then
-        AUDIO_HAT=$(detect_hat)
-        echo "Auto-detected HAT: $AUDIO_HAT"
+        # Run detect_hat in current shell (not subshell) so HAT_DETECTION_SOURCE
+        # survives — command substitution $() would discard global side-effects.
+        _hat_tmp=$(mktemp)
+        detect_hat > "$_hat_tmp"
+        AUDIO_HAT=$(cat "$_hat_tmp")
+        rm -f "$_hat_tmp"
+        echo "Auto-detected HAT: $AUDIO_HAT (source: $HAT_DETECTION_SOURCE)"
     fi
     HAT_CONFIG=$(resolve_hat_config_name "$AUDIO_HAT")
 else
@@ -835,11 +870,17 @@ if [ -n "$BOOT_CONFIG" ]; then
             esac
         fi
 
-        # Disable onboard audio
-        echo "dtparam=audio=off"
+        # Disable onboard audio only when HAT is confirmed (EEPROM or ALSA).
+        # I2C detection can false-positive (e.g., non-DAC chip at 0x4D).
+        # USB and internal audio need onboard audio as fallback.
+        if [ -n "$HAT_OVERLAY" ] && [[ "$HAT_DETECTION_SOURCE" == "eeprom" || "$HAT_DETECTION_SOURCE" == "alsa" ]]; then
+            echo "dtparam=audio=off"
+        fi
 
-        # GPU memory based on resolution
-        if [ "$DISPLAY_WIDTH" -gt 1920 ]; then
+        # GPU memory: headless needs minimal (16MB), display needs more
+        if [[ "${HAS_DISPLAY:-true}" == "false" ]]; then
+            echo "gpu_mem=16"
+        elif [ "$DISPLAY_WIDTH" -gt 1920 ]; then
             echo "gpu_mem=512"
             echo "hdmi_enable_4kp60=1"
             echo "hdmi_force_hotplug=1"
@@ -983,18 +1024,26 @@ set_resource_limits "$RESOURCE_PROFILE"
 echo "Hardware profile: $RESOURCE_PROFILE ($(awk '/MemTotal/ {printf "%.1fGB RAM", $2/1024/1024}' /proc/meminfo), $(nproc) cores)"
 
 # Detect network type and set ALSA buffer defaults
-# Treat "auto" same as empty — trigger detection
-if [[ "${CONNECTION_TYPE:-auto}" == "auto" ]]; then
+# Both mode (localhost): audio goes over loopback, not WiFi — use tight buffers
+if [[ "${SNAPSERVER_HOST:-}" == "127.0.0.1" ]]; then
+    CONNECTION_TYPE="local"
+elif [[ "${CONNECTION_TYPE:-auto}" == "auto" ]]; then
     CONNECTION_TYPE=$(detect_connection_type)
 fi
 echo "Network: $CONNECTION_TYPE"
 
-# WiFi needs larger buffers due to inherent jitter (10-100ms)
-# Ethernet is stable enough for tight sync
+# Buffer sizing by connection type:
+#   local: loopback has zero jitter — tightest buffers
+#   ethernet: stable, low jitter
+#   wifi: inherent jitter (10-100ms) — needs larger buffers
 case "$CONNECTION_TYPE" in
     wifi)
         ALSA_BUFFER_TIME="${ALSA_BUFFER_TIME:-250}"
         ALSA_FRAGMENTS="${ALSA_FRAGMENTS:-8}"
+        ;;
+    local)
+        ALSA_BUFFER_TIME="${ALSA_BUFFER_TIME:-100}"
+        ALSA_FRAGMENTS="${ALSA_FRAGMENTS:-4}"
         ;;
     *)
         ALSA_BUFFER_TIME="${ALSA_BUFFER_TIME:-150}"
@@ -1089,11 +1138,13 @@ declare -A env_vars=(
     ["ALSA_BUFFER_TIME"]="$ALSA_BUFFER_TIME"
     ["ALSA_FRAGMENTS"]="$ALSA_FRAGMENTS"
     ["CONNECTION_TYPE"]="$CONNECTION_TYPE"
+    # Read-only filesystem (--no-readonly disables)
+    ["ENABLE_READONLY"]="$ENABLE_READONLY"
+    # Docker image tag — inherited from firstboot/prepare-sd (e.g. "dev" for --dev mode)
+    ["IMAGE_TAG"]="${IMAGE_TAG:-latest}"
     # Version tag (for display) — prefer VERSION file baked by prepare-sd.sh,
     # fall back to git describe (dev clones), then short SHA, then "dev".
     ["APP_VERSION"]="$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo "dev")"
-    # Image tag — passed from firstboot.sh in "both" mode, or from install.conf
-    ["IMAGE_TAG"]="${IMAGE_TAG:-latest}"
 )
 
 for key in "${!env_vars[@]}"; do
@@ -1123,7 +1174,7 @@ echo ""
 # ============================================
 echo "Framebuffer mode: display rendering handled by fb-display Docker container"
 
-if systemctl is-enabled x11-autostart.service 2>/dev/null; then
+if systemctl is-enabled x11-autostart.service &>/dev/null; then
     systemctl disable x11-autostart.service
     echo "  Disabled previous X11 autostart service"
 fi

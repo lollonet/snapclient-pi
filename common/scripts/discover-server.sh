@@ -3,8 +3,9 @@
 # Boot mode:  runs as ExecStartPre (no args) — sets localhost for "both" mode.
 # Watch mode: runs periodically (--watch) — restarts client if server IP changed.
 #
-# SNAPSERVER_HOST in .env is left empty (mDNS autodiscovery via snapclient).
-# Only "both" mode sets SNAPSERVER_HOST=127.0.0.1 (local server always wins).
+# Discovers the snapserver via mDNS and writes its IPv4 to SNAPSERVER_HOST in .env.
+# "Both" mode: SNAPSERVER_HOST=127.0.0.1 (local server always wins).
+# If mDNS fails, the existing IP in .env is kept (avoids losing a valid server).
 set -euo pipefail
 
 ENV_FILE="/opt/snapclient/.env"
@@ -35,38 +36,36 @@ if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^snapserver$'; then
     exit 0
 fi
 
-# Clear any hardcoded SNAPSERVER_HOST — clients should always use mDNS autodiscovery.
-# Old installs may have an IP written by a previous discover-server.sh version.
-current=$(grep "^SNAPSERVER_HOST=" "$ENV_FILE" 2>/dev/null | cut -d= -f2) || true
-if [[ -n "$current" ]]; then
-    sed -i "s|^SNAPSERVER_HOST=.*|SNAPSERVER_HOST=|" "$ENV_FILE" 2>/dev/null || true
-    echo "snapclient-discover: cleared hardcoded SNAPSERVER_HOST=$current (using mDNS)"
-    if $WATCH_MODE; then
+# Discover server via mDNS (IPv4 only) and write to .env.
+# snapclient's built-in Avahi can pick IPv6 link-local addresses
+# which don't work inside Docker containers (scope ID mismatch).
+# We run discovery on the host and pass the IPv4 result to the container.
+_discover_ipv4() {
+    if command -v avahi-browse &>/dev/null; then
+        timeout 10 avahi-browse -rpt _snapcast._tcp 2>/dev/null \
+            | awk -F';' '/^=/ && $3=="IPv4" {print $8; exit}'
+    fi
+}
+
+_update_server() {
+    local new_ip="$1"
+    local current
+    current=$(grep "^SNAPSERVER_HOST=" "$ENV_FILE" 2>/dev/null | cut -d= -f2) || true
+    if [[ "$new_ip" != "$current" ]]; then
+        sed -i "s|^SNAPSERVER_HOST=.*|SNAPSERVER_HOST=$new_ip|" "$ENV_FILE" 2>/dev/null || true
+        echo "snapclient-discover: server at $new_ip (was: ${current:-empty})"
+        echo "$new_ip" > "$LAST_IP_FILE"
+        return 0  # changed
+    fi
+    return 1  # unchanged
+}
+
+host=$(_discover_ipv4) || true
+if [[ -n "$host" ]] && [[ "$host" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if _update_server "$host" && $WATCH_MODE; then
+        echo "snapclient-discover: restarting client for new server"
         cd /opt/snapclient && docker compose restart snapclient 2>/dev/null || true
     fi
+else
+    echo "snapclient-discover: no snapserver found via mDNS"
 fi
-
-# Watch mode: detect server IP changes and restart snapclient
-if $WATCH_MODE && command -v avahi-browse &>/dev/null; then
-    host=$(timeout 10 avahi-browse -rpt _snapcast._tcp 2>/dev/null \
-        | awk -F';' '/^=/ && $3=="IPv4" {print $8; exit}') || true
-    last=$(cat "$LAST_IP_FILE" 2>/dev/null) || true
-
-    if [[ -n "$host" ]] && [[ "$host" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        if [[ -n "$last" && "$host" != "$last" ]]; then
-            echo "snapclient-discover: server moved $last -> $host, restarting client"
-            if cd /opt/snapclient && docker compose restart snapclient 2>/dev/null; then
-                echo "$host" > "$LAST_IP_FILE"
-            else
-                echo "snapclient-discover: restart failed, will retry next cycle"
-            fi
-        else
-            echo "$host" > "$LAST_IP_FILE"
-        fi
-    else
-        echo "snapclient-discover: no snapserver found via mDNS"
-    fi
-    exit 0
-fi
-
-echo "snapclient-discover: boot mode, snapclient will use mDNS autodiscovery"
