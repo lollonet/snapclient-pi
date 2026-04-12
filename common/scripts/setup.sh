@@ -1443,6 +1443,19 @@ if [[ ${#_pull_services[@]} -eq 0 ]]; then
 fi
 
 _pull_failed=()
+
+# Pull a single service with 3-attempt retry. Returns 0 on success.
+_pull_one() {
+    local svc="$1"
+    for attempt in 1 2 3; do
+        if docker compose pull "$svc" 2>&1 | tail -3; then
+            return 0
+        fi
+        [[ $attempt -lt 3 ]] && { log_progress "Retrying $svc in ${attempt}0s..."; sleep "$((attempt * 10))"; }
+    done
+    return 1
+}
+
 for svc in "${_pull_services[@]}"; do
     log_progress "docker compose pull: $svc"
 done
@@ -1452,35 +1465,26 @@ for ((i=0; i<${#_pull_services[@]}; i+=2)); do
     svc1="${_pull_services[$i]}"
     svc2="${_pull_services[$i+1]:-}"
 
-    # Pull svc1 (+ svc2 in background if exists)
+    # Pull svc2 in background (output to temp file to avoid interleaving)
+    _bg_pid="" _bg_log=""
     if [[ -n "$svc2" ]]; then
-        docker compose pull "$svc2" >/dev/null 2>&1 &
+        _bg_log=$(mktemp)
+        _pull_one "$svc2" >"$_bg_log" 2>&1 &
         _bg_pid=$!
     fi
 
-    # svc1 with 3 attempts
-    _ok=false
-    for attempt in 1 2 3; do
-        if docker compose pull "$svc1" 2>&1 | tail -3; then
-            _ok=true; break
-        fi
-        [[ $attempt -lt 3 ]] && { log_progress "Retrying $svc1 in ${attempt}0s..."; sleep "$((attempt * 10))"; }
-    done
-    [[ "$_ok" != "true" ]] && _pull_failed+=("$svc1")
+    # svc1 with 3 attempts in foreground
+    if ! _pull_one "$svc1"; then
+        _pull_failed+=("$svc1")
+    fi
 
-    # Wait for background svc2
-    if [[ -n "${svc2:-}" ]]; then
+    # Wait for background svc2 (already retried 3x in background)
+    if [[ -n "$_bg_pid" ]]; then
         if ! wait "$_bg_pid" 2>/dev/null; then
-            # Retry svc2 in foreground
-            _ok=false
-            for attempt in 1 2 3; do
-                if docker compose pull "$svc2" 2>&1 | tail -3; then
-                    _ok=true; break
-                fi
-                [[ $attempt -lt 3 ]] && { log_progress "Retrying $svc2 in ${attempt}0s..."; sleep "$((attempt * 10))"; }
-            done
-            [[ "$_ok" != "true" ]] && _pull_failed+=("$svc2")
+            cat "$_bg_log"  # surface output on failure
+            _pull_failed+=("$svc2")
         fi
+        rm -f "$_bg_log"
     fi
 done
 
