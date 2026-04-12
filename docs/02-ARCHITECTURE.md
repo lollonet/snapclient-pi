@@ -134,8 +134,7 @@ common/
 └── public/                     # Web UI assets (standby artwork, etc.)
 
 install/
-├── snapclient.conf             # User-facing config defaults
-└── README.txt                  # Quick reference
+└── snapclient.conf             # User-facing config defaults
 ```
 
 ## Key Design Decisions
