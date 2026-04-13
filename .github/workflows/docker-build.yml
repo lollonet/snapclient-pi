@@ -38,8 +38,10 @@ jobs:
 
       - name: Determine snapcast source
         id: snapcast
+        env:
+          USE_SANTCASP: ${{ inputs.use_santcasp }}
         run: |
-          if [[ "${{ inputs.use_santcasp }}" == "true" ]]; then
+          if [[ "$USE_SANTCASP" == "true" ]]; then
             REPO="https://github.com/lollonet/santcasp.git"
           else
             REPO="https://github.com/badaix/snapcast.git"
