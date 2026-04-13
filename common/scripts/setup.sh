@@ -1448,7 +1448,11 @@ fi
 # Pull images with retry (network hiccups common on Pi WiFi).
 # Pull 2 services at a time — balances network throughput vs SD I/O.
 _pull_tmp=$(mktemp -d)
-trap 'rm -rf "$_pull_tmp"' EXIT
+_pull_cleanup() {
+    _setup_failure_dump
+    rm -rf "$_pull_tmp" 2>/dev/null || true
+}
+trap _pull_cleanup EXIT
 mapfile -t _pull_services < <(docker compose config --services 2>/dev/null)
 if [[ ${#_pull_services[@]} -eq 0 ]]; then
     stop_progress_animation
