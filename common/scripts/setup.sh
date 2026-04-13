@@ -1576,7 +1576,7 @@ if mountpoint -q /media/root-ro 2>/dev/null; then
         exit 1
     fi
 
-    sudo sync
+    # sync happens in bake_cleanup EXIT trap
     log_progress "Docker images baked to SD card"
 else
     echo "Non-overlayroot system -- Docker images stored directly on disk"
