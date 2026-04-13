@@ -19,13 +19,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Clone and build snapclient from upstream badaix/snapcast.
 # Repo and tag are configurable via build args.
-# develop branch overrides SNAPCAST_REPO to lollonet/santcasp fork.
+# CI passes SNAPCAST_REPO=...santcasp.git when building the develop branch.
 ARG SNAPCAST_REPO=https://github.com/badaix/snapcast.git
 ARG SNAPCAST_BRANCH=master
 ARG SNAPCAST_TAG=
 ARG SNAPCAST_SHA=latest
 WORKDIR /build
-RUN echo "snapcast repo: $SNAPCAST_REPO branch: ${SNAPCAST_TAG:-$SNAPCAST_BRANCH}" && \
+RUN echo "snapcast repo: $SNAPCAST_REPO branch: ${SNAPCAST_TAG:-$SNAPCAST_BRANCH} sha: $SNAPCAST_SHA" && \
     git clone --depth 1 --branch "${SNAPCAST_TAG:-$SNAPCAST_BRANCH}" "$SNAPCAST_REPO" snapcast
 
 WORKDIR /build/snapcast
