@@ -956,6 +956,7 @@ detect_resource_profile() {
 
     # Fallback to standard profile if detection failed (0 or very low = likely error)
     if (( mem_mb < 256 )); then
+        echo "WARNING: Only ${mem_mb}MB RAM detected — client needs at least 256MB" >&2
         echo "standard"
         return
     fi
