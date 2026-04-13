@@ -1054,36 +1054,23 @@ esac
 
 cd "$INSTALL_DIR"
 
-# Read current snapserver from .env if exists (empty = autodiscovery)
+# Snapserver host: empty = autodiscovery via mDNS at boot.
+# discover-server.sh (systemd ExecStartPre) handles boot-time mDNS lookup
+# and writes the IP to .env. We don't bake an IP at install time because
+# the server's address can change between installs and reboots.
+# "Both" mode (server+client on same Pi) uses 127.0.0.1 — set by firstboot.sh.
 current_snapserver=$(grep "^SNAPSERVER_HOST=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d= -f2 || echo "")
 
 if [ "$AUTO_MODE" = true ]; then
-    snapserver_ip="${SNAPSERVER_HOST:-$current_snapserver}"
-    echo "Snapserver: ${snapserver_ip:-autodiscovery (mDNS)}"
+    # In auto mode, only use explicit env var (e.g. SNAPSERVER_HOST=127.0.0.1 for "both" mode)
+    # Empty means autodiscovery — don't bake install-time mDNS results
+    snapserver_ip="${SNAPSERVER_HOST:-}"
+    echo "Snapserver: ${snapserver_ip:-autodiscovery (mDNS at boot)}"
 else
     [ -z "$current_snapserver" ] && echo "Current: mDNS autodiscovery" || echo "Current Snapserver: $current_snapserver"
     # Configure snapserver host (empty = autodiscovery via mDNS)
     read -rp "Enter Snapserver IP/hostname (or press Enter for autodiscovery): " snapserver_ip
     snapserver_ip=${snapserver_ip:-$current_snapserver}
-fi
-
-# Resolve snapserver IP via mDNS when display is active and no explicit IP set.
-# Snapclient handles empty SNAPSERVER_HOST via built-in mDNS, but fb-display
-# connects directly via WebSocket and needs an explicit IP/hostname.
-# docker-compose.yml maps METADATA_HOST from SNAPSERVER_HOST.
-if [[ -z "$snapserver_ip" ]]; then
-    echo "Discovering snapserver via mDNS for display metadata..."
-    if command -v avahi-browse &>/dev/null; then
-        snapserver_ip=$(timeout 10 avahi-browse -rpt _snapcast._tcp 2>/dev/null \
-            | awk -F';' '/^=/ && $3=="IPv4" {print $8; exit}') || true
-    fi
-    if [[ -n "$snapserver_ip" ]]; then
-        echo "Discovered snapserver at: $snapserver_ip"
-    else
-        echo "WARNING: Could not discover snapserver via mDNS."
-        echo "  Display metadata will fall back to localhost."
-        echo "  Set SNAPSERVER_HOST in .env if server is on another host."
-    fi
 fi
 
 # Always use "default" ALSA device — asound.conf routes it to either:
@@ -1111,10 +1098,9 @@ update_env_var() {
     fi
 }
 
-# Only update SNAPSERVER_HOST if we have a value (don't clear existing on failed discovery)
-if [[ -n "$snapserver_ip" ]]; then
-    update_env_var "SNAPSERVER_HOST" "$snapserver_ip"
-fi
+# Write SNAPSERVER_HOST: explicit IP for "both" mode, empty for autodiscovery.
+# discover-server.sh updates this at boot via mDNS.
+update_env_var "SNAPSERVER_HOST" "${snapserver_ip:-}"
 
 # Update all environment variables
 declare -A env_vars=(
