@@ -5,6 +5,7 @@ set -euo pipefail
 _setup_failure_dump() {
     local rc=$?
     [[ $rc -eq 0 ]] && return
+    stop_progress_animation 2>/dev/null || true
     echo ""
     echo "=== SETUP FAILED (exit: $rc) ==="
     echo "--- Memory ---"
