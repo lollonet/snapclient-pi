@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Diagnostic dump on failure (standalone mode only — firstboot has its own trap)
+_setup_failure_dump() {
+    local rc=$?
+    [[ $rc -eq 0 ]] && return
+    echo ""
+    echo "=== SETUP FAILED (exit: $rc) ==="
+    echo "--- Memory ---"
+    free -m 2>/dev/null || true
+    echo "--- Disk ---"
+    df -h / /opt 2>/dev/null || true
+    echo "--- Docker ---"
+    docker ps -a --format 'table {{.Names}}\t{{.Status}}' 2>/dev/null || true
+    echo "=== END DIAGNOSTIC DUMP ==="
+}
+trap _setup_failure_dump EXIT
+
 # Suppress locale warnings from apt and other tools; avoids stdout pollution
 # in functions called via $() substitution.
 export DEBIAN_FRONTEND=noninteractive
@@ -1507,6 +1523,8 @@ if mountpoint -q /media/root-ro 2>/dev/null; then
     log_progress "Baking Docker images to SD card..."
     BAKE_DIR=$(mktemp -d /tmp/snapclient-bake-XXXXX)
     bake_cleanup() {
+        _setup_failure_dump  # chain diagnostic dump on failure
+        rm -rf "$_pull_tmp" 2>/dev/null || true
         sudo umount "$BAKE_DIR" 2>/dev/null || true
         rmdir "$BAKE_DIR" 2>/dev/null || true
         sudo sync
